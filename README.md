@@ -1,0 +1,2 @@
+# shellrc
+Shell configuration
