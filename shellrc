@@ -1,0 +1,806 @@
+#!/usr/bin/env sh
+# Cross-shell rc file
+# sourced by
+#  ~/.bash_profile
+#  ~/.bashrc
+#  ~/.zprofile
+#  ~/.zshrc
+#  ~/.profile
+
+SHELLRC_DEBUG=false
+
+# Prevent sourcing more than once per session
+if [ "$SHELLRC_SOURCED" ]; then return 0; fi
+SHELLRC_SOURCED=true
+
+maybe_echo() {
+	[ -z $SHELLRC_DEBUG ] && return 0
+	[ $SHELLRC_DEBUG = true ] && echo "$1"
+}
+
+maybe_echo "$HOME/.shellrc"
+
+is_darwin() {
+	case $(uname) in
+		"Darwin"*) return 0;;
+		*) return 1;;
+	esac
+}
+
+is_linux() {
+	case $(uname) in
+		"Linux"*) return 0;;
+		*) return 1;;
+	esac
+}
+
+is_bash() {
+	[ -z "$BASH_VERSION" ] && return 1
+	return 0
+}
+
+is_zsh() {
+	[ -z "$ZSH_VERSION" ] && return 1
+	return 0
+}
+
+snapshot_if_diff() {
+	if [ -z "$2" ]; then
+		echo "snapshot_if_diff(): ERROR: nothing to diff"
+		return 1
+	fi
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	if ! diff -EBq "$1" "$2" &>/dev/null; then
+		echo "... writing $1"
+		mv "$1" "$1-$TS" 2>/dev/null
+		cat "$2" > "$1"
+		unset TS
+		return 0
+	fi
+	unset TS	
+	return 1
+}
+
+try_self_update() {
+	# https://stackoverflow.com/questions/24118224/how-to-make-asynchronous-function-calls-in-shell-scripts
+	# Download from server
+	true
+}
+
+install_sh() {
+	is_bash || is_zsh && return 0
+	maybe_echo "install_sh()"
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	FILES="$HOME/.profile"
+	for F in ${FILES}; do
+		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+			continue
+		else
+			[ -f "$F" ] && mv "$F" "$F-$TS"
+			tee "$F" <<-EOF >/dev/null
+				#!/usr/bin/env sh
+				[ -f ~/.shellrc ] && source ~/.shellrc
+				EOF
+		fi
+	done
+	unset TS FILES F
+}
+
+install_bash() {
+	is_bash || return 0
+	maybe_echo "install_bash()"
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	FILES=("$HOME/.bash_profile" "$HOME/.bashrc")
+	for F in "${FILES[@]}"; do
+		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+			continue
+		else
+			[ -f "$F" ] && mv "$F" "$F-$TS"
+			tee "$F" <<-EOF >/dev/null
+				#!/usr/bin/env bash
+				[ -f ~/.shellrc ] && source ~/.shellrc
+				EOF
+		fi
+	done
+	unset TS FILES F
+}
+
+enable_homebrew_bash() {
+	command -v brew > /dev/null 2>&1 || return 0
+	BREW_PREFIX=$(brew --prefix)
+	grep -Fxq "$BREW_PREFIX/bin/bash" /etc/shells && return 0
+	[ -f "$BREW_PREFIX/bin/bash" ] || return 0
+	maybe_echo "enable_homebrew_bash()"
+	echo "$BREW_PREFIX/bin/bash" | sudo tee -a /etc/shells
+	sudo chsh -s "$BREW_PREFIX/bin/bash"
+	cat /etc/shells
+	unset BREW_PREFIX
+}
+
+disable_homebrew_bash() {
+	command -v brew > /dev/null 2>&1 || return 0
+	grep -Fxq "$(brew --prefix)/bin/bash" /etc/shells && return 0
+	maybe_echo "disable_homebrew_bash()"
+	sudo chsh -s /bin/bash
+}
+
+install_zsh() {
+	is_zsh || return 0
+	maybe_echo "install_zsh()"
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	# FILES=("$HOME/.zprofile" "$HOME/.zshrc")
+	FILES=("$HOME/.zshrc") # Seems to be setting only from here
+	for F in "${FILES[@]}"; do
+		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+			continue
+		else
+			[ -f "$F" ] && mv "$F" "$F-$TS"
+			tee "$F" <<-EOF >/dev/null
+				#!/usr/bin/env zsh
+				[ -f ~/.shellrc ] && source ~/.shellrc
+				EOF
+		fi
+	done
+	unset TS FILES F
+}
+
+configure_darwin() {
+	is_darwin || return 0
+	maybe_echo "configure_darwin()"
+	export SHELL_SESSIONS_DISABLE=1
+	export SHELL_SESSIONS_HISTORY=0
+	export BASH_SILENCE_DEPRECATION_WARNING=1
+}
+
+configure_linux() {
+	is_linux || return 0
+	maybe_echo "configure_linux()"
+}
+
+set_shell_options() {
+	maybe_echo "set_shell_options()"
+	[ -f "$HOME/.hushlogin" ] || touch "$HOME/.hushlogin"
+}
+
+set_bash_options() {
+	is_bash || return 0
+	maybe_echo "set_bash_options()"
+	HISTIGNORE="&:[ ]*:cd ~:~:cd ..:..:clear:history:[bf]g:reboot:shutdown:exit:date:pwd:* --help"
+	HISTCONTROL="erasedups:ignorespace"
+	HISTSIZE=32768
+	HISTFILESIZE=$HISTSIZE
+	SAVEHIST=$HISTSIZE
+	HISTFILE="${HOME}/.history"
+	# Use standard ISO 8601 timestamp
+	# %F equivalent to %Y-%m-%d
+	# %T equivalent to %H:%M:%S (24-hours format)
+	# HISTTIMEFORMAT='%F %T '
+	# Prevent file overwrite on stdout redirection
+	# Use `>|` to force redirection to an existing file
+	# set -o noclobber
+	# Update window size after every command
+	shopt -s checkwinsize
+	# Automatically trim long paths in the prompt (requires Bash 4.x)
+	PROMPT_DIRTRIM=2
+	# Turn on recursive globbing (enables ** to recurse all directories)
+	shopt -s globstar 2> /dev/null
+	# Case-insensitive globbing (used in pathname expansion)
+	shopt -s nocaseglob;
+	# Append to the history file, don't overwrite it
+	shopt -s histappend
+	# Save multi-line commands as one command
+	shopt -s cmdhist
+	# Prepend cd to directory names automatically
+	shopt -s autocd 2> /dev/null
+	# Correct spelling errors during tab-completion
+	shopt -s dirspell 2> /dev/null
+	# Correct spelling errors in arguments supplied to cd
+	shopt -s cdspell 2> /dev/null
+	# This defines where cd looks for targets
+	# Add the directories you want to have fast access to, separated by colon
+	# Ex: CDPATH=".:~:~/projects" will look for targets in the current working directory, in home and in the ~/projects folder
+	CDPATH="."
+	# This allows you to bookmark your favorite places across the file system
+	# Define a variable containing a path and you will be able to cd into it regardless of the directory you're in
+	shopt -s cdable_vars
+	# Examples:
+	# export dotfiles="$HOME/dotfiles"
+	# export projects="$HOME/projects"
+	# export documents="$HOME/Documents"
+	# export dropbox="$HOME/Dropbox"
+}
+
+set_zsh_options() {
+	is_zsh || return 0
+	maybe_echo "set_zsh_options()"
+	# https://zsh.sourceforge.io/Doc/Release/Options.html
+	# setopt extended_history       # record timestamp of command in HISTFILE
+	setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
+	setopt hist_ignore_all_dups
+	setopt hist_ignore_space      # ignore commands that start with space
+	setopt hist_verify            # show command with history expansion to user before running it
+	setopt inc_append_history     # add commands to HISTFILE in order of execution
+	# setopt share_history          # share command history data
+	setopt hash_list_all 
+	setopt correct
+	# unsetopt extended_history
+	HISTORY_IGNORE="(&|[ ]*|cd ~|~|cd ..|..|clear|history|[bf]g|reboot|shutdown|exit|date|pwd|* --help)"
+	HISTFILE="${HOME}/.history"
+	HISTSIZE=50000
+	SAVEHIST=10000
+	ZSH_COMPDUMP="$XDG_CACHE_HOME/.zcompdump-$HOST"
+}
+
+set_xdg_directories() {
+	maybe_echo "set_xdg_directories()"
+	if [ -z "$XDG_CONFIG_HOME" ]; then
+		mkdir -p "$HOME/.config"
+		export XDG_CONFIG_HOME="$HOME/.config"
+	fi
+	if [ -z "$XDG_CACHE_HOME" ]; then
+		mkdir -p "$HOME/.cache"
+		export XDG_CACHE_HOME="$HOME/.cache"
+	fi
+	if [ -z "$XDG_DATA_HOME" ]; then
+		mkdir -p "$HOME/.local/share"
+		export XDG_DATA_HOME="$HOME/.local/share"
+	fi
+	if [ -z "$XDG_STATE_HOME" ]; then
+		mkdir -p "$HOME/.local/state"
+		export XDG_STATE_HOME="$HOME/.local/state"
+	fi
+	# See https://wiki.archlinux.org/title/XDG_Base_Directory
+	# XDG_RUNTIME_DIR
+	# XDG_DATA_DIRS
+	# XDG_CONFIG_DIRS
+}
+
+is_smart_terminal() {
+	case "$TERM" in
+		"dumb")
+			return 1;;
+		xterm*|rxvt*|eterm*|screen*)
+			return 0;;
+		*)
+			return 1;;
+	esac
+}
+
+set_bash_prompt_string() {
+	maybe_echo "set_bash_prompt_string()"
+	if ! is_smart_terminal; then
+		PS1="> "
+		return 0
+	fi
+	PS1=$'\[\e[1m\]\u\[\e[2m\]@\h\[\e[0;2m\]:\[\e[0m\]\w\[\e[2m\] \xe2\x97\x8f \[\e[0m\]'
+}
+
+set_zsh_prompt_string() {
+	maybe_echo "set_zsh_prompt_string()"
+	if ! is_smart_terminal; then
+		PS1="> "
+		return 0
+	fi
+	PROMPT=$'%B%n%{\e[2m%}@%m%{\e[0;2m%}:%{\e[0m%}%~%{\e[2m%} \xe2\x97\x8f %{\e[0m%}'
+}
+
+set_ls_colors() {
+	maybe_echo "set_ls_colors()"
+	# https://geoff.greer.fm/lscolors/
+	# Detect which `ls` flavor is in use
+	export CLICOLOR=1 # macOS only
+	if ls --color > /dev/null 2>&1; then
+		LS_COLOR_FLAG="--color"
+	else # OS X `ls`
+		LS_COLOR_FLAG="-G"
+	fi
+	alias ls="command ls ${LS_COLOR_FLAG}"
+	# export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
+	unset LS_COLOR_FLAG
+}
+
+make_aliases() {
+	maybe_echo "make_aliases()"
+	is_available() {
+		if command -v "$1" > /dev/null 2>&1; then return 0; else return 1; fi
+	}
+	if ! type _get_comp_words_by_ref > /dev/null 2>&1; then
+		alias sudo='sudo ' # Enable sudo <aslias>, only if bash-completion is not loaded.
+	fi
+	alias lsd="ls -la \${LS_COLOR_FLAG} | grep '^d'" # List only directories
+	is_available nano && alias crontab="env EDITOR=nano crontab" # Reset EDITOR for crontab
+	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
+	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
+	if ! is_available pgrep; then
+		psgrep () {
+			ps aux | egrep -v grep | egrep $1 | awk '{print $2}'
+		}
+	fi
+	is_darwin && alias ip="ipconfig getifaddr en0"
+	alias ips="ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'"
+	# macOS fallbacks
+	! is_available md5sum && alias md5sum="md5"
+	! is_available sha1sum && alias sha1sum="shasum"
+	is_darwin && alias dsstore="find . -type f -name '*.DS_Store' -ls -delete"
+	# Docker container aliases
+	if is_available docker; then
+		alias photostructure="docker exec -u photostructure -it photostructure ./photostructure"
+	fi
+	unset -f is_available
+}
+
+configure_vim() {
+	maybe_echo "configure_vim()"
+	VIM_HOME="$XDG_CONFIG_HOME/vim"
+	[ -d "$VIM_HOME" ] || (mkdir -p "$VIM_HOME"; mkdir -p "$VIM_HOME/runtime")
+	# [ -f "$VIM_HOME/vimrc" ] || touch "$VIM_HOME/vimrc"
+	# export VIM="$VIM_HOME"
+	# VIMINIT="set viminfo+=n$VIM_HOME/viminfo|:set runtimepath^=$VIM_HOME/runtime|:source $VIM_HOME/vimrc"
+	# export VIMINIT
+
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	F=$(mktemp)
+	tee "$F" <<-'EOF' >/dev/null
+		" https://gist.github.com/simonista/8703722
+		" Don't try to be vi compatible
+		set nocompatible
+
+		" Helps force plugins to load correctly when it is turned back on below
+		filetype off
+
+		" TODO: Load plugins here (pathogen or vundle)
+
+		" Turn on syntax highlighting
+		syntax on
+
+		" For plugins to load correctly
+		filetype plugin indent on
+
+		" TODO: Pick a leader key
+		" let mapleader = ","
+
+		" Security
+		set modelines=0
+
+		" Show line numbers
+		set number
+
+		" Show file stats
+		set ruler
+
+		" Blink cursor on error instead of beeping (grr)
+		set visualbell
+
+		" Encoding
+		set encoding=utf-8
+
+		" Whitespace
+		set wrap
+		set textwidth=79
+		set formatoptions=tcqrn1
+		set tabstop=2
+		set shiftwidth=2
+		set softtabstop=2
+		set expandtab
+		set noshiftround
+
+		" Cursor motion
+		set scrolloff=3
+		set backspace=indent,eol,start
+		set matchpairs+=<:> " use % to jump between pairs
+		runtime! macros/matchit.vim
+
+		" Move up/down editor lines
+		nnoremap j gj
+		nnoremap k gk
+
+		" Allow hidden buffers
+		set hidden
+
+		" Rendering
+		set ttyfast
+
+		" Status bar
+		set laststatus=2
+
+		" Last line
+		set showmode
+		set showcmd
+
+		" Searching
+		nnoremap / /\v
+		vnoremap / /\v
+		set hlsearch
+		set incsearch
+		set ignorecase
+		set smartcase
+		set showmatch
+		map <leader><space> :let @/=''<cr> " clear search
+
+		" Remap help key.
+		inoremap <F1> <ESC>:set invfullscreen<CR>a
+		nnoremap <F1> :set invfullscreen<CR>
+		vnoremap <F1> :set invfullscreen<CR>
+
+		" Textmate holdouts
+
+		" Formatting
+		map <leader>q gqip
+
+		" Visualize tabs and newlines
+		set listchars=tab:▸\ ,eol:¬
+		" Uncomment this to enable by default:
+		" set list " To enable by default
+		" Or use your leader key + l to toggle on/off
+		map <leader>l :set list!<CR> " Toggle tabs and EOL
+
+		" Color scheme (terminal)
+		set t_Co=256
+		set background=dark
+		let g:solarized_termcolors=256
+		let g:solarized_termtrans=1
+		" put https://raw.github.com/altercation/vim-colors-solarized/master/colors/solarized.vim
+		" in ~/.vim/colors/ and uncomment:
+		" colorscheme solarized
+		EOF
+	unset VIM_HOME TS F
+}
+
+write_inputrc() {
+	maybe_echo "write_inputrc()"
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	F=$(mktemp)
+	tee "$F" <<-'EOF' >/dev/null
+		# Use the text that has already been typed as the prefix for searching through
+		# commands (i.e. more intelligent Up/Down behavior)
+		"\e[A": history-search-backward
+		"\e[B": history-search-forward
+		"\eOA": history-search-backward
+		"\eOB": history-search-forward
+		
+		# Use Alt/Meta + Delete to delete the preceding word
+		"\e[3;3~": kill-word
+
+		$if Bash
+		# E.g. typing !!<space> will replace the !! with your last command
+		Space: magic-space
+		$endif
+
+		# Make Tab autocomplete regardless of filename case
+		set completion-ignore-case on
+
+		# List all matches in case multiple possible completions are possible
+		set show-all-if-ambiguous on
+
+		# Immediately add a trailing slash when autocompleting symlinks to directories
+		set mark-symlinked-directories on
+
+		# Do not autocomplete hidden files unless the pattern explicitly begins with a dot
+		set match-hidden-files off
+
+		# Show all autocomplete results at once
+		set page-completions off
+
+		# If there are more than 200 possible completions for a word, ask to show them all
+		set completion-query-items 200
+
+		# Show extra file information when completing, like `ls -F` does
+		set visible-stats on
+
+		# Be more intelligent when autocompleting by also looking at the text after
+		# the cursor. For example, when the current line is "cd ~/src/mozil", and
+		# the cursor is on the "z", pressing Tab will not autocomplete it to "cd
+		# ~/src/mozillail", but to "cd ~/src/mozilla". (This is supported by the
+		# Readline used by Bash 4.)
+		set skip-completed-text on
+
+		# Allow UTF-8 input and output, instead of showing stuff like $'\0123\0456'
+		set input-meta on
+		set output-meta on
+		set convert-meta off
+
+		# Treat hyphens and underscores as equivalent
+		set completion-map-case on
+		EOF
+	if ! diff -EBq ~/.inputrc "$F" &>/dev/null; then
+		echo "... writing $HOME/.inputrc"
+		mv "$HOME/.inputrc" "$HOME/.inputrc-$TS" 2>/dev/null
+		cat "$F" > ~/.inputrc
+	fi
+	if is_bash; then
+		bind -f "$HOME/.inputrc"
+	fi
+	unset TS F
+}
+
+write_npmrc() {
+	maybe_echo "write_npmrc()"
+	if ! command -v npm >/dev/null; then return 0; fi
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	F=$(mktemp)
+	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
+	tee "$F" <<-EOF >/dev/null
+		userconfig="$NPM_CONFIG_USERCONFIG"
+		cache="$XDG_CACHE_HOME/npm"
+		save-exact=true
+		prefer-offline=true
+		update-notifier=false
+		omit=optional
+		fund=false
+		long=true
+		EOF
+	if ! diff -EBq \
+		-I '^_.*' \
+		-I '*._auth.*' \
+		-I '*._pass.*' \
+		-I '^username.*' \
+		-I '^email.*' \
+		-I '^certfile.*' \
+		-I '^keyfile.*' \
+		-I '^ca=.*' \
+		-I '^ca\[.*' \
+		-I '^init-.*' \
+		"$NPM_CONFIG_USERCONFIG" "$F" &>/dev/null; then
+			echo "... writing $NPM_CONFIG_USERCONFIG"
+			mv "$NPM_CONFIG_USERCONFIG" "$NPM_CONFIG_USERCONFIG-$TS" 2>/dev/null
+			cat "$F" > "$NPM_CONFIG_USERCONFIG"
+	fi
+	unset TS F
+}
+
+configure_zshell_line_editor() {
+	is_zsh || return 0
+	maybe_echo "configure_zshell_line_editor()"
+	bindkey "\e[A" history-search-backward
+	bindkey "\e[B" history-search-forward
+	bindkey "\eOA" history-search-backward
+	bindkey "\eOB" history-search-forward
+}
+
+autovenv() {
+	maybe_echo "autovenv()"
+	# From:
+	#   https://github.com/RaytingSec/autovenv/blob/master/.py_autovenv
+	# Also worth looking at:
+	#   https://github.com/hyperupcall/autoenv
+	venv_candidates() {
+		echo $1/.venv
+		echo $1/.env
+	}
+	venv_find() {
+		local venv_root=${1:-"."}
+		local venv_found=""
+		for (( i=10; i > 0; i-- )); do
+			local venv_real=$(cd $venv_root && pwd -P)
+			local venv_name=$(basename "$venv_real")
+			for candidate in $( venv_candidates $venv_real ) ; do
+				if [ -f "$candidate/bin/activate" ]; then
+					echo $(cd $candidate && pwd -P)
+					return
+				fi
+			done
+
+			if [ "$venv_real" = "/" ]; then
+				break
+			fi
+			venv_root=$venv_root/".."
+		done
+	}
+	venv_curr() {
+		if [ -n "$VIRTUAL_ENV" -a "$(type -t deactivate)" = 'function' ]; then
+			echo $VIRTUAL_ENV
+		fi
+	}
+	venv_auto() {
+		venv_new="$(venv_find)"
+		venv_old="$(venv_curr)"
+		if [ -z "$venv_new" -a -n "$venv_old" ]; then
+			echo "Deactivating $(_venv_name $venv_old)..."
+			deactivate
+		elif [ -n "$venv_new" -a "$venv_new" != "$venv_old" ]; then
+			echo "Activating $(_venv_name $venv_new)..."
+			source "$venv_new"/bin/activate
+		fi
+	}
+	_venv_ps1() {
+		if [[ -z "$VIRTUAL_ENV" ]]; then
+			printf ""
+		else
+			printf "$(basename $(dirname $(venv_curr)))"
+		fi
+	}
+	_venv_name() {
+		printf $(basename $(dirname $1))
+	}
+}
+
+set_default_editor() {
+	maybe_echo "set_default_editor()"
+	if command -v nano &> /dev/null; then
+		export EDITOR="nano"
+	fi
+	if command -v subl &> /dev/null; then
+		export EDITOR="subl --wait --new-window"
+	fi
+}
+
+run_prompt_commands() {
+	maybe_echo "run_prompt_commands()"
+	# Make history available all sessions
+	history -a
+	venv_auto
+}
+
+set_path() {
+	maybe_append() {
+		if [ -d "$1" ]; then export PATH="$PATH":"$1"; fi
+	}
+	maybe_prepend() {
+		if [ -d "$1" ]; then export PATH="$1":"$PATH"; fi
+	}
+	# Homebrew
+	if command -v brew > /dev/null 2>&1; then
+		BREW_PREFIX=$(brew --prefix)
+		maybe_prepend "$BREW_PREFIX/bin:$BREW_PREFIX/sbin"
+		maybe_prepend "$BREW_PREFIX/opt/sqlite/bin"
+		maybe_prepend "$BREW_PREFIX/opt/ffmpeg@5/bin"
+		maybe_prepend "$BREW_PREFIX/opt/php@8.1/bin"
+		maybe_prepend "$BREW_PREFIX/opt/php@8.1/sbin"
+		maybe_prepend "$BREW_PREFIX/opt/python/libexec/bin"
+		maybe_prepend "$BREW_PREFIX/opt/python@3.12/bin"
+		maybe_prepend "$BREW_PREFIX/usr/local/opt/automysqlbackup/sbin"
+		unset BREW_PREFIX
+	fi
+	# Mac apps
+	maybe_prepend "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
+	maybe_prepend "/Applications/Tower.app/Contents/MacOS"
+	maybe_prepend "/Applications/VMware Fusion.app/Contents/Library"
+	maybe_prepend "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+	maybe_prepend "/Applications"
+	# Extra
+	maybe_prepend "$HOME/.cargo/bin"
+	maybe_prepend "$HOME/bin/automysqlbackup-v3.0_rc6"
+	maybe_prepend "$HOME/.bun"
+	# pipx
+	maybe_prepend "$HOME/.local/bin"
+	# Opalstack
+	maybe_prepend "$HOME/local"
+	if [ -d "$HOME/local" ]; then
+		for D in "$HOME"/local/*/; do
+			export PATH="$D:$PATH"
+			maybe_prepend "$D/bin"
+		done
+	fi
+	unset D
+}
+
+make_utility_functions() {
+	wordpress_delete_thumbnails() {
+		if [[ "$(pwd)" == *"/uploads"* ]]; then
+			find . -regextype egrep -regex ".+-[0-9]+?x[0-9]+\.(jpe?g|png)$" -type f -print0 | xargs -0 rm
+		fi
+	}
+	wordpress_delete_thumbnails() {
+		if [[ "$(pwd)" == *"/uploads"* ]]; then
+			find . -regextype egrep -regex ".+\.(jpe?g|png)$" -type f -print0 | xargs -0 mogrify -resize "3072x3072>" -quality 92
+		fi
+	}
+}
+
+load_bash_completion() {
+	is_bash || return 0
+	complete -cf sudo
+	[ "${BASH_VERSINFO:-0}" -ge 4 ] || return 0
+	type _get_comp_words_by_ref > /dev/null 2>&1 && return 0
+	maybe_echo "load_bash_completion()"
+	PATHS=(
+		"$sysconfdir/profile.d/bash_completion.sh"
+		"/usr/share/bash-completion/bash_completion"
+		"/etc/bash_completion"
+		"/sw/etc/bash_completion"
+		"/usr/local/etc/bash_completion"
+	)
+	for P in "${PATHS[@]}"; do
+		[ -f "$P" ] && maybe_echo "... $P"
+		if [[ $PS1 && -f $P ]]; then
+			unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
+			source "$P"
+			break
+		fi
+	done
+	unset P PATHS
+}
+
+load_zsh_completion() {
+	is_zsh || return 0
+	maybe_echo "load_zshell_completion()"
+	autoload -U +X compinit && compinit
+}
+
+load_python_completions() {
+	# for zsh: https://stackoverflow.com/a/75791863
+	maybe_echo "load_python_completions()"
+	command -v 'register-python-argcomplete' > /dev/null 2>&1 || return 0
+	load_python_completion() {
+		command -v "$1" > /dev/null 2>&1 && eval "$(register-python-argcomplete $1)"
+	}
+	load_python_completion pipx
+	unset -f load_python_completion
+}
+
+cleanup_macos() {
+	is_darwin || return 0
+	sudo -v
+	# # Sparkle framework leftovers
+	# find "$HOME" -maxdepth 10 -type d -name ".Sparkle"
+	# # Lightroom media cache files
+	# # https://news.ycombinator.com/item?id=11095581
+	# rm "$HOME/Library/Caches/Adobe/Lightroom/Video/Media Cache Files/*"
+	# rm "$HOME/Library/Application Support/Adobe/Common/Media Cache Files/*"
+}
+
+# Set locale
+# macOS only recognises "UTF-8", not "utf8"
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+
+
+install_sh
+install_bash
+install_zsh
+set_bash_prompt_string
+set_zsh_prompt_string
+set_xdg_directories
+set_path
+configure_darwin
+configure_linux
+set_shell_options
+set_zsh_options
+set_bash_options
+set_ls_colors
+set_default_editor
+make_aliases
+write_inputrc
+configure_zshell_line_editor
+configure_vim
+load_bash_completion
+load_zsh_completion
+load_python_completions
+write_npmrc
+make_utility_functions
+autovenv
+
+PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
+
+unset -f maybe_prepend
+unset -f maybe_append
+unset -f is_darwin
+unset -f is_linux
+unset -f is_smart_terminal
+unset -f is_bash
+unset -f is_zsh
+
+unset -f install_sh
+unset -f install_bash
+unset -f install_zsh
+unset -f set_bash_prompt_string
+unset -f set_zsh_prompt_string
+unset -f set_xdg_directories
+unset -f set_path
+unset -f configure_darwin
+unset -f configure_linux
+unset -f set_shell_options
+unset -f set_zsh_options
+unset -f set_bash_options
+unset -f set_ls_colors
+unset -f set_default_editor
+unset -f make_aliases
+unset -f write_inputrc
+unset -f configure_zshell_line_editor
+unset -f configure_vim
+unset -f load_bash_completion
+unset -f load_zsh_completion
+unset -f load_python_completions
+unset -f write_npmrc
+unset -f make_utility_functions
+unset -f autovenv
