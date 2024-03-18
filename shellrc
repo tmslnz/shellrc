@@ -69,9 +69,9 @@ update_shellrc() {
 	# file modfied time: date -r <filename> "+%s"
 	# Find real .shellrc file if symlinked
 	SHELLRC_FILE=~/.shellrc
-	if command -v perl > /dev/null 2>&1; then
+	if command -v perl > /dev/null; then
 		SHELLRC_FILE=$(perl -MCwd -le 'print Cwd::abs_path(shift)' "$SHELLRC_FILE")
-	elif command -v realpath > /dev/null 2>&1; then
+	elif command -v realpath > /dev/null; then
 		SHELLRC_FILE=$(realpath "$SHELLRC_FILE")
 	else
 		SHELLRC_FILE=$(readlink -f "$SHELLRC_FILE")
@@ -131,7 +131,7 @@ install_bash() {
 }
 
 enable_homebrew_bash() {
-	command -v brew > /dev/null 2>&1 || return 0
+	command -v brew > /dev/null || return 0
 	BREW_PREFIX=$(brew --prefix)
 	grep -Fxq "$BREW_PREFIX/bin/bash" /etc/shells && return 0
 	[ -f "$BREW_PREFIX/bin/bash" ] || return 0
@@ -143,7 +143,7 @@ enable_homebrew_bash() {
 }
 
 disable_homebrew_bash() {
-	command -v brew > /dev/null 2>&1 || return 0
+	command -v brew > /dev/null || return 0
 	grep -Fxq "$(brew --prefix)/bin/bash" /etc/shells && return 0
 	maybe_echo "disable_homebrew_bash()"
 	sudo chsh -s /bin/bash
@@ -327,7 +327,7 @@ set_ls_colors() {
 make_aliases() {
 	maybe_echo "make_aliases()"
 	is_available() {
-		if command -v "$1" > /dev/null 2>&1; then return 0; else return 1; fi
+		command -v "$1" > /dev/null
 	}
 	if ! type _get_comp_words_by_ref > /dev/null 2>&1; then
 		alias sudo='sudo ' # Enable sudo <aslias>, only if bash-completion is not loaded.
@@ -583,7 +583,7 @@ write_inputrc() {
 
 write_npmrc() {
 	maybe_echo "write_npmrc()"
-	if ! command -v npm >/dev/null; then return 0; fi
+	command -v npm > /dev/null || return 1
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
@@ -684,10 +684,10 @@ autovenv() {
 
 set_default_editor() {
 	maybe_echo "set_default_editor()"
-	if command -v nano &> /dev/null; then
+	if command -v nano > /dev/null; then
 		export EDITOR="nano"
 	fi
-	if command -v subl &> /dev/null; then
+	if command -v subl > /dev/null; then
 		export EDITOR="subl --wait --new-window"
 	fi
 }
@@ -707,7 +707,7 @@ set_path() {
 		if [ -d "$1" ]; then export PATH="$1":"$PATH"; fi
 	}
 	# Homebrew
-	if command -v brew > /dev/null 2>&1; then
+	if command -v brew > /dev/null; then
 		BREW_PREFIX=$(brew --prefix)
 		maybe_prepend "$BREW_PREFIX/bin:$BREW_PREFIX/sbin"
 		maybe_prepend "$BREW_PREFIX/opt/sqlite/bin"
@@ -798,9 +798,9 @@ load_zsh_completion() {
 load_python_completions() {
 	# for zsh: https://stackoverflow.com/a/75791863
 	maybe_echo "load_python_completions()"
-	command -v 'register-python-argcomplete' > /dev/null 2>&1 || return 0
+	command -v 'register-python-argcomplete' > /dev/null || return 1
 	load_python_completion() {
-		command -v "$1" > /dev/null 2>&1 && eval "$(register-python-argcomplete $1)"
+		command -v "$1" > /dev/null && eval "$(register-python-argcomplete $1)"
 	}
 	load_python_completion pipx
 	unset -f load_python_completion
