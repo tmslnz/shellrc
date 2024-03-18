@@ -354,6 +354,49 @@ make_aliases() {
 	unset -f is_available
 }
 
+configure_nano() {
+	maybe_echo "configure_nano()"
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	F=$(mktemp)
+	## TODO
+	# on Linux, /etc/nanorc
+	# 1. Do we have nano?
+	# 2. What path are nano syntax files?
+	#    - /usr/share/nano/...
+	#    - /usr/share/nano-syntax-highlighting/...
+	#    - /opt/homebrew/share/nanorc/...
+	#    - ~/.nano/nanorc/...
+	# 3. fn() for each desired syntax, add `include` to .nanorc file if not present
+	tee "$F" <<-'EOF' >/dev/null
+		include "/usr/share/nano/nanorc.nanorc"
+		include "/usr/share/nano/c.nanorc"
+		include "/usr/share/nano/makefile.nanorc"
+		include "/usr/share/nano/css.nanorc"
+		include "/usr/share/nano/debian.nanorc"
+		include "/usr/share/nano/gentoo.nanorc"
+		include "/usr/share/nano/html.nanorc"
+		include "/usr/share/nano/php.nanorc"
+		include "/usr/share/nano/tcl.nanorc"
+		include "/usr/share/nano/tex.nanorc"
+		include "/usr/share/nano/mutt.nanorc"
+		include "/usr/share/nano/patch.nanorc"
+		include "/usr/share/nano/man.nanorc"
+		include "/usr/share/nano/groff.nanorc"
+		include "/usr/share/nano/perl.nanorc"
+		include "/usr/share/nano/python.nanorc"
+		include "/usr/share/nano/ruby.nanorc"
+		include "/usr/share/nano/java.nanorc"
+		include "/usr/share/nano/fortran.nanorc"
+		include "/usr/share/nano/objc.nanorc"
+		include "/usr/share/nano/ocaml.nanorc"
+		include "/usr/share/nano/awk.nanorc"
+		include "/usr/share/nano/asm.nanorc"
+		include "/usr/share/nano/sh.nanorc"
+		include "/usr/share/nano/xml.nanorc"
+		EOF
+	unset TS F
+}
+
 configure_vim() {
 	maybe_echo "configure_vim()"
 	VIM_HOME="$XDG_CONFIG_HOME/vim"
