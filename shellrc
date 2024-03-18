@@ -685,9 +685,11 @@ autovenv() {
 set_default_editor() {
 	maybe_echo "set_default_editor()"
 	if command -v nano > /dev/null; then
+		export VISUAL="nano"
 		export EDITOR="nano"
 	fi
 	if command -v subl > /dev/null; then
+		export VISUAL="subl --wait --new-window"
 		export EDITOR="subl --wait --new-window"
 	fi
 }
