@@ -93,7 +93,7 @@ install_sh() {
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	FILES="$HOME/.profile"
 	for F in ${FILES}; do
-		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
 			[ -f "$F" ] && mv "$F" "$F-$TS"
@@ -112,12 +112,13 @@ install_bash() {
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	FILES=("$HOME/.bash_profile" "$HOME/.bashrc")
 	for F in "${FILES[@]}"; do
-		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
 			[ -f "$F" ] && mv "$F" "$F-$TS"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env bash
+				[ -f /etc/bashrc ] && /etc/bashrc
 				[ -f ~/.shellrc ] && source ~/.shellrc
 				EOF
 		fi
@@ -151,7 +152,7 @@ install_zsh() {
 	# FILES=("$HOME/.zprofile" "$HOME/.zshrc")
 	FILES=("$HOME/.zshrc") # Seems to be setting only from here
 	for F in "${FILES[@]}"; do
-		if [ -f "$F" ] && sed '2!d' "$F" | grep -Fq '[ -f ~/.shellrc ]'; then
+		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
 			[ -f "$F" ] && mv "$F" "$F-$TS"
