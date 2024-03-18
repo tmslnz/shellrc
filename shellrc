@@ -733,13 +733,13 @@ load_zsh_completion() {
 	# See: https://zsh.sourceforge.io/Doc/Release/Completion-System.html#index-matcher_002dlist_002c-completion-style
 	is_zsh || return 0
 	maybe_echo "load_zshell_completion()"
-	# autoload -U +X compinit && compinit
 	autoload -Uz compinit && compinit
-	# zstyle ':completion:*' matcher-list 'r:|?=**'
-	zstyle ':completion:*' matcher-list \
-		'm:{[:lower:]}={[:upper:]}' \
-		'+r:|[._-]=* r:|=*' \
-		'+l:|=*'
+	zstyle ':completion:*' matcher-list 'r:|?=**'
+	# autoload -U +X compinit && compinit
+	# zstyle ':completion:*' matcher-list \
+	# 	'm:{[:lower:]}={[:upper:]}' \
+	# 	'+r:|[._-]=* r:|=*' \
+	# 	'+l:|=*'
 }
 
 load_python_completions() {
