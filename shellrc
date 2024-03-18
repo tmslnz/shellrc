@@ -57,7 +57,7 @@ snapshot_if_diff() {
 		unset TS
 		return 0
 	fi
-	unset TS	
+	unset TS
 	return 1
 }
 
