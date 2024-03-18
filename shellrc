@@ -76,7 +76,9 @@ update_shellrc() {
 	else
 		SHELLRC_FILE=$(readlink -f "$SHELLRC_FILE")
 	fi
-	curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc
+	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
+		return 1
+	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
 		echo "... writing $SHELLRC_FILE"
 		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" 2>/dev/null
