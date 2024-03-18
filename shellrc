@@ -85,7 +85,7 @@ update_shellrc() {
 	else
 		echo "... no updates available"
 	fi
-	unset TS F
+	unset TS F SHELLRC_FILE
 }
 
 install_sh() {
