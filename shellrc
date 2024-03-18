@@ -77,6 +77,7 @@ update_shellrc() {
 		SHELLRC_FILE=$(readlink -f "$SHELLRC_FILE")
 	fi
 	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
+		echo "... curl error"
 		return 1
 	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
