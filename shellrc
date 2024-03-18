@@ -81,6 +81,7 @@ update_shellrc() {
 		echo "... writing $SHELLRC_FILE"
 		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" 2>/dev/null
 		cat "$F" > "$SHELLRC_FILE"
+		source "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
 	fi
