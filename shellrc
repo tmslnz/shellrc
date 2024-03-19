@@ -355,7 +355,11 @@ make_aliases() {
 
 configure_nano() {
 	F=$(mktemp)
+	command -v nano > /dev/null || return 1
 	maybe_echo "configure_nano()"
+	includes() {
+		grep -xqs '.*include.*'$1'.*' $2
+	}
 	## TODO
 	# on Linux, /etc/nanorc
 	# 1. Do we have nano?
