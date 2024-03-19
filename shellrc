@@ -44,27 +44,29 @@ is_zsh() {
 	return 0
 }
 
+rename_with_timestamp() {
+	TS=$(date -u +"%Y-%m-%dT%H%M%S")
+	mv "$1" "$1-$TS" > /dev/null 2>&1
+	unset TS
+}
+
 snapshot_if_diff() {
 	if [ -z "$2" ]; then
 		echo "snapshot_if_diff(): ERROR: nothing to diff"
 		return 1
 	fi
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	if ! diff -EBq "$1" "$2" &>/dev/null; then
 		echo "... writing $1"
-		mv "$1" "$1-$TS" 2>/dev/null
+		rename_with_timestamp "$1"
 		cat "$2" > "$1"
-		unset TS
 		return 0
 	fi
-	unset TS
 	return 1
 }
 
 update_shellrc() {
 	# https://stackoverflow.com/questions/24118224/how-to-make-asynchronous-function-calls-in-shell-scripts
 	F=$(mktemp)
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	# utc seconds: date "+%s"
 	# file modfied time: date -r <filename> "+%s"
 	# Find real .shellrc file if symlinked
@@ -82,44 +84,42 @@ update_shellrc() {
 	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
 		echo "... writing $SHELLRC_FILE"
-		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" 2>/dev/null
+		rename_with_timestamp "$SHELLRC_FILE"
 		cat "$F" > "$SHELLRC_FILE"
 		source "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
 	fi
-	unset TS F SHELLRC_FILE
+	unset F SHELLRC_FILE
 }
 
 install_sh() {
 	is_bash || is_zsh && return 0
 	maybe_echo "install_sh()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	FILES="$HOME/.profile"
 	for F in ${FILES}; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && mv "$F" "$F-$TS"
+			[ -f "$F" ] && rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env sh
 				[ -f ~/.shellrc ] && source ~/.shellrc
 				EOF
 		fi
 	done
-	unset TS FILES F
+	unset FILES F
 }
 
 install_bash() {
 	is_bash || return 0
 	maybe_echo "install_bash()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	FILES=("$HOME/.bash_profile" "$HOME/.bashrc")
 	for F in "${FILES[@]}"; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && mv "$F" "$F-$TS"
+			[ -f "$F" ] && rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env bash
 				[ -f /etc/bashrc ] && /etc/bashrc
@@ -127,7 +127,7 @@ install_bash() {
 				EOF
 		fi
 	done
-	unset TS FILES F
+	unset FILES F
 }
 
 enable_homebrew_bash() {
@@ -152,21 +152,20 @@ disable_homebrew_bash() {
 install_zsh() {
 	is_zsh || return 0
 	maybe_echo "install_zsh()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	# FILES=("$HOME/.zprofile" "$HOME/.zshrc")
 	FILES=("$HOME/.zshrc") # Seems to be setting only from here
 	for F in "${FILES[@]}"; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && mv "$F" "$F-$TS"
+			[ -f "$F" ] && rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env zsh
 				[ -f ~/.shellrc ] && source ~/.shellrc
 				EOF
 		fi
 	done
-	unset TS FILES F
+	unset FILES F
 }
 
 configure_darwin() {
@@ -355,9 +354,8 @@ make_aliases() {
 }
 
 configure_nano() {
-	maybe_echo "configure_nano()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	F=$(mktemp)
+	maybe_echo "configure_nano()"
 	## TODO
 	# on Linux, /etc/nanorc
 	# 1. Do we have nano?
@@ -394,7 +392,8 @@ configure_nano() {
 		include "/usr/share/nano/sh.nanorc"
 		include "/usr/share/nano/xml.nanorc"
 		EOF
-	unset TS F
+	unset F
+	unset -f includes
 }
 
 configure_vim() {
@@ -570,9 +569,9 @@ write_inputrc() {
 		# Treat hyphens and underscores as equivalent
 		set completion-map-case on
 		EOF
-	if ! diff -EBq ~/.inputrc "$F" &>/dev/null; then
+	if ! diff -EBq ~/.inputrc "$F" > /dev/null 2>&1; then
 		echo "... writing $HOME/.inputrc"
-		mv "$HOME/.inputrc" "$HOME/.inputrc-$TS" 2>/dev/null
+		rename_with_timestamp "$HOME/.inputrc" && \
 		cat "$F" > ~/.inputrc
 	fi
 	if is_bash; then
@@ -610,7 +609,7 @@ write_npmrc() {
 		-I '^init-.*' \
 		"$NPM_CONFIG_USERCONFIG" "$F" &>/dev/null; then
 			echo "... writing $NPM_CONFIG_USERCONFIG"
-			mv "$NPM_CONFIG_USERCONFIG" "$NPM_CONFIG_USERCONFIG-$TS" 2>/dev/null
+			rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
 			cat "$F" > "$NPM_CONFIG_USERCONFIG"
 	fi
 	unset TS F
@@ -819,68 +818,65 @@ cleanup_macos() {
 	# rm "$HOME/Library/Application Support/Adobe/Common/Media Cache Files/*"
 }
 
-# Set locale
-# macOS only recognises "UTF-8", not "utf8"
-export LC_ALL=en_US.UTF-8
-export LANG=en_US.UTF-8
+set_locale() {
+	maybe_echo "set_locale()"
+	# macOS only recognises "UTF-8", not "utf8"
+	export LC_ALL=en_US.UTF-8
+	export LANG=en_US.UTF-8
+}
 
+set_prompt_command() {
+	PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
+}
 
-install_sh
-install_bash
-install_zsh
-set_bash_prompt_string
-set_zsh_prompt_string
-set_xdg_directories
-set_path
-configure_darwin
-configure_linux
-set_shell_options
-set_zsh_options
-set_bash_options
-set_ls_colors
-set_default_editor
-make_aliases
-write_inputrc
-configure_zshell_line_editor
-configure_vim
-load_bash_completion
-load_zsh_completion
-load_python_completions
-write_npmrc
-make_utility_functions
-autovenv
+main() {
+	maybe_echo "main()"
+	read -r -d '' FUNCTIONS <<-'EOF'
+		install_sh
+		install_bash
+		install_zsh
+		set_locale
+		set_bash_prompt_string
+		set_zsh_prompt_string
+		set_xdg_directories
+		set_path
+		configure_darwin
+		configure_linux
+		set_shell_options
+		set_zsh_options
+		set_bash_options
+		set_ls_colors
+		set_default_editor
+		make_aliases
+		write_inputrc
+		configure_zshell_line_editor
+		configure_vim
+		load_bash_completion
+		load_zsh_completion
+		load_python_completions
+		write_npmrc
+		make_utility_functions
+		autovenv
+		set_prompt_command
+		EOF
+	while IFS= read -r line || [[ -n $line ]]; do
+		"$line"
+	done < <(printf '%s' "$FUNCTIONS")
+	while IFS= read -r line || [[ -n $line ]]; do
+		unset -f "$line"
+	done < <(printf '%s' "$FUNCTIONS")
+	unset FUNCTIONS
+	unset -f maybe_prepend
+	unset -f maybe_append
+	unset -f is_darwin
+	unset -f is_linux
+	unset -f is_smart_terminal
+	unset -f is_bash
+	unset -f is_zsh
+	unset -f rename_with_timestamp
+	unset -f snapshot_if_diff
+}
 
-PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
+main
+unset -f main
 
-unset -f maybe_prepend
-unset -f maybe_append
-unset -f is_darwin
-unset -f is_linux
-unset -f is_smart_terminal
-unset -f is_bash
-unset -f is_zsh
-
-unset -f install_sh
-unset -f install_bash
-unset -f install_zsh
-unset -f set_bash_prompt_string
-unset -f set_zsh_prompt_string
-unset -f set_xdg_directories
-unset -f set_path
-unset -f configure_darwin
-unset -f configure_linux
-unset -f set_shell_options
-unset -f set_zsh_options
-unset -f set_bash_options
-unset -f set_ls_colors
-unset -f set_default_editor
-unset -f make_aliases
-unset -f write_inputrc
-unset -f configure_zshell_line_editor
-unset -f configure_vim
-unset -f load_bash_completion
-unset -f load_zsh_completion
-unset -f load_python_completions
-unset -f write_npmrc
-unset -f make_utility_functions
-unset -f autovenv
