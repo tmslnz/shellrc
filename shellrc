@@ -64,12 +64,7 @@ snapshot_if_diff() {
 	return 1
 }
 
-update_shellrc() {
-	# https://stackoverflow.com/questions/24118224/how-to-make-asynchronous-function-calls-in-shell-scripts
-	F=$(mktemp)
-	# utc seconds: date "+%s"
-	# file modfied time: date -r <filename> "+%s"
-	# Find real .shellrc file if symlinked
+get_shellrc_file() {
 	SHELLRC_FILE=~/.shellrc
 	if command -v perl > /dev/null; then
 		SHELLRC_FILE=$(perl -MCwd -le 'print Cwd::abs_path(shift)' "$SHELLRC_FILE")
@@ -78,6 +73,17 @@ update_shellrc() {
 	else
 		SHELLRC_FILE=$(readlink -f "$SHELLRC_FILE")
 	fi
+	printf "%s" $SHELLRC_FILE
+	unset SHELLRC_FILE
+}
+
+update_shellrc() {
+	# https://stackoverflow.com/questions/24118224/how-to-make-asynchronous-function-calls-in-shell-scripts
+	F=$(mktemp)
+	# utc seconds: date "+%s"
+	# file modfied time: date -r <filename> "+%s"
+	# Find real .shellrc file if symlinked
+	SHELLRC_FILE=$(get_shellrc_file)
 	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
 		echo "... curl error"
 		return 1
