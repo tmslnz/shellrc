@@ -64,6 +64,12 @@ snapshot_if_diff() {
 	return 1
 }
 
+a_newer_than_b() {
+	A=$(date -r "$1" "+%s")
+	B=$(date -r "$2" "+%s")
+	[ "$A" -gt "$B" ]
+}
+
 get_shellrc_file() {
 	SHELLRC_FILE=~/.shellrc
 	if command -v perl > /dev/null; then
