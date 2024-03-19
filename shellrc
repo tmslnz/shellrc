@@ -409,7 +409,6 @@ configure_vim() {
 	# VIMINIT="set viminfo+=n$VIM_HOME/viminfo|:set runtimepath^=$VIM_HOME/runtime|:source $VIM_HOME/vimrc"
 	# export VIMINIT
 
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	F=$(mktemp)
 	tee "$F" <<-'EOF' >/dev/null
 		" https://gist.github.com/simonista/8703722
@@ -514,7 +513,7 @@ configure_vim() {
 		" in ~/.vim/colors/ and uncomment:
 		" colorscheme solarized
 		EOF
-	unset VIM_HOME TS F
+	unset VIM_HOME F
 }
 
 write_inputrc() {
