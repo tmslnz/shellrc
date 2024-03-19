@@ -73,7 +73,7 @@ get_shellrc_file() {
 	else
 		SHELLRC_FILE=$(readlink -f "$SHELLRC_FILE")
 	fi
-	printf "%s" $SHELLRC_FILE
+	printf "%s" "$SHELLRC_FILE"
 	unset SHELLRC_FILE
 }
 
