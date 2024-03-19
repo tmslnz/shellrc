@@ -519,7 +519,6 @@ configure_vim() {
 
 write_inputrc() {
 	maybe_echo "write_inputrc()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	F=$(mktemp)
 	tee "$F" <<-'EOF' >/dev/null
 		# Use the text that has already been typed as the prefix for searching through
@@ -581,13 +580,12 @@ write_inputrc() {
 	if is_bash; then
 		bind -f "$HOME/.inputrc"
 	fi
-	unset TS F
+	unset F
 }
 
 write_npmrc() {
 	maybe_echo "write_npmrc()"
 	command -v npm > /dev/null || return 1
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
 	tee "$F" <<-EOF >/dev/null
@@ -616,7 +614,7 @@ write_npmrc() {
 			rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
 			cat "$F" > "$NPM_CONFIG_USERCONFIG"
 	fi
-	unset TS F
+	unset F
 }
 
 configure_zshell_line_editor() {
