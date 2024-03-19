@@ -628,8 +628,8 @@ configure_zshell_line_editor() {
 	bindkey "\eOB" history-search-forward
 }
 
-autovenv() {
-	maybe_echo "autovenv()"
+load_python_autovenv() {
+	maybe_echo "load_python_autovenv()"
 	# From:
 	#   https://github.com/RaytingSec/autovenv/blob/master/.py_autovenv
 	# Also worth looking at:
@@ -860,7 +860,7 @@ main() {
 		load_python_completions
 		write_npmrc
 		make_utility_functions
-		autovenv
+		load_python_autovenv
 		set_prompt_command
 		EOF
 	while IFS= read -r line || [[ -n $line ]]; do
