@@ -583,6 +583,8 @@ write_inputrc() {
 		# Treat hyphens and underscores as equivalent
 		set completion-map-case on
 		EOF
+	# https://stackoverflow.com/questions/9847479/use-pipe-of-commands-as-argument-for-diff
+	# echo $F | diff -EBq ~/.inputrc -
 	if ! diff -EBq ~/.inputrc "$F" > /dev/null 2>&1; then
 		echo "... writing $HOME/.inputrc"
 		rename_with_timestamp "$HOME/.inputrc" && \
@@ -820,6 +822,44 @@ load_python_completions() {
 	unset -f load_python_completion
 }
 
+configure_ssh() {
+	has_host() {
+		awk -v c=1 '/^Host '"$1"'/,/^$/{c=!($2<100)}END{exit c}' ~/.ssh/config
+	}
+	read -r -d '' SSH_CONFIG <<-'EOF'
+		# BEGIN_SHELLRC
+		# testing
+		# Tssdasd
+		# END_SHELLRC
+		EOF
+	SSH_CONFIG_READ=$(awk '/# ?BEGIN_SHELLRC/,/# ?END_SHELLRC/{print $0}' ~/.ssh/config)
+	# If no SHELLRC section is found, prepend it
+	if [ -z "$SSH_CONFIG_READ" ]; then
+		printf '%s\n%s\n' "$SSH_CONFIG" "$(cat ~/.ssh/config)" >~/.ssh/config
+		return 0
+	fi
+	# If SHELLRC section is unchanged, return
+	[ "$SSH_CONFIG_READ" = "$SSH_CONFIG" ] && return 0
+	# If ssh config is newer than .shellrc, abort
+	if a_newer_than_b ~/.ssh/config "$(get_shellrc_file)"; then
+		"... ~/.ssh/config is newer. Skipping"
+		return 0
+	fi
+	# Finally replace ssh config section with our section
+	awk '
+	/# BEGIN_SHELLRC/ {string=ARGV[1]; ARGV[1]=""; print string; section=1; next}
+	/# END_SHELLRC/ {section=0}
+	section {next}
+	{print}
+	' "$SSH_CONFIG" .ssh/config
+
+	# awk -v new_file=new_banner.txt '
+	# /# BEGIN_SHELLRC/ {print; system("cat " new_file); banner=1; next}
+	# /# END_SHELLRC/ {banner=0}
+	# banner {next}
+	# {print}
+	# ' a.html
+}
 cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
