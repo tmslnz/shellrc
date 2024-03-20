@@ -897,6 +897,17 @@ configure_ssh() {
 		    HostName opal6.opalstack.com
 		    User theworkers
 
+		Host cuba_admin_nebula
+		    # Requires Nebula connection
+		    HostName 100.100.1.1
+		    User theworkers
+		    Port 451
+
+		Host cuba_admin_lan
+		    HostName cuba
+		    User theworkers
+		    Port 451
+
 		Host nebula
 		    HostName 135.181.203.23
 		    User root
