@@ -44,20 +44,20 @@ is_zsh() {
 	return 0
 }
 
-rename_with_timestamp() {
+_rename_with_timestamp() {
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	mv "$1" "$1-$TS" > /dev/null 2>&1
 	unset TS
 }
 
-snapshot_if_diff() {
+_snapshot_if_diff() {
 	if [ -z "$2" ]; then
-		echo "snapshot_if_diff(): ERROR: nothing to diff"
+		echo "_snapshot_if_diff(): ERROR: nothing to diff"
 		return 1
 	fi
 	if ! diff -EBq "$1" "$2" &>/dev/null; then
 		echo "... writing $1"
-		rename_with_timestamp "$1"
+		_rename_with_timestamp "$1"
 		cat "$2" > "$1"
 		return 0
 	fi
@@ -70,7 +70,7 @@ a_newer_than_b() {
 	[ "$A" -gt "$B" ]
 }
 
-prepend_section_in_file() {
+_prepend_section_in_file() {
 	SECTION="$1"
 	FILE="$2"
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
@@ -80,7 +80,7 @@ prepend_section_in_file() {
 	unset SECTION FILE SECTION_READ
 }
 
-append_section_in_file() {
+_append_section_in_file() {
 	SECTION="$1"
 	FILE="$2"
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
@@ -90,7 +90,7 @@ append_section_in_file() {
 	unset SECTION FILE SECTION_READ
 }
 
-update_section_in_file() {
+_update_section_in_file() {
 	SECTION="$1"
 	FILE="$2"
 	# Read current from disk
@@ -147,7 +147,7 @@ update_shellrc() {
 	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
 		echo "... writing $SHELLRC_FILE"
-		rename_with_timestamp "$SHELLRC_FILE"
+		_rename_with_timestamp "$SHELLRC_FILE"
 		cat "$F" > "$SHELLRC_FILE"
 		source "$SHELLRC_FILE"
 	else
@@ -164,7 +164,7 @@ install_sh() {
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env sh
 				[ -f ~/.shellrc ] && source ~/.shellrc
@@ -182,7 +182,7 @@ install_bash() {
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env bash
 				[ -f /etc/bashrc ] && /etc/bashrc
@@ -221,7 +221,7 @@ install_zsh() {
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env zsh
 				[ -f ~/.shellrc ] && source ~/.shellrc
@@ -638,7 +638,7 @@ write_inputrc() {
 	# echo $F | diff -EBq ~/.inputrc -
 	if ! diff -EBq ~/.inputrc "$F" > /dev/null 2>&1; then
 		echo "... writing $HOME/.inputrc"
-		rename_with_timestamp "$HOME/.inputrc" && \
+		_rename_with_timestamp "$HOME/.inputrc" && \
 		cat "$F" > ~/.inputrc
 	fi
 	if is_bash; then
@@ -677,7 +677,7 @@ configure_npm() {
 		-I '^init-.*' \
 		"$NPM_CONFIG_USERCONFIG" "$F" &>/dev/null; then
 			echo "... writing $NPM_CONFIG_USERCONFIG"
-			rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
+			_rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
 			cat "$F" > "$NPM_CONFIG_USERCONFIG"
 	fi
 	unset F
@@ -809,6 +809,7 @@ set_path() {
 		done
 	fi
 	unset D
+	unset -f maybe_prepend maybe_append
 }
 
 make_utility_functions() {
@@ -942,8 +943,8 @@ configure_ssh() {
 
 		# END_SHELLRC
 		EOF
-	append_section_in_file "$SSH_CONFIG" ~/.ssh/config
-	update_section_in_file "$SSH_CONFIG" ~/.ssh/config
+	_append_section_in_file "$SSH_CONFIG" ~/.ssh/config
+	_update_section_in_file "$SSH_CONFIG" ~/.ssh/config
 	unset SSH_CONFIG
 }
 
@@ -1007,18 +1008,14 @@ main() {
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS")
 	unset FUNCTIONS
-	unset -f maybe_prepend
-	unset -f maybe_append
-	unset -f prepend_section_in_file
-	unset -f append_section_in_file
-	unset -f update_section_in_file
+	unset -f _prepend_section_in_file
+	unset -f _append_section_in_file
+	unset -f _update_section_in_file
 	unset -f is_darwin
 	unset -f is_linux
 	unset -f is_smart_terminal
 	unset -f is_bash
 	unset -f is_zsh
-	unset -f rename_with_timestamp
-	unset -f snapshot_if_diff
 }
 
 main
