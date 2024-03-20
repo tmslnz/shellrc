@@ -647,8 +647,8 @@ write_inputrc() {
 	unset F
 }
 
-write_npmrc() {
-	maybe_echo "write_npmrc()"
+configure_npm() {
+	maybe_echo "configure_npm()"
 	command -v npm > /dev/null || return 1
 	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
@@ -1005,7 +1005,7 @@ main() {
 		load_bash_completion
 		load_zsh_completion
 		load_python_completions
-		write_npmrc
+		configure_npm
 		make_utility_functions
 		load_python_autovenv
 		set_prompt_command
