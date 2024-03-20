@@ -45,12 +45,14 @@ is_zsh() {
 }
 
 _rename_with_timestamp() {
+	maybe_echo "_rename_with_timestamp()"
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	mv "$1" "$1-$TS" > /dev/null 2>&1
 	unset TS
 }
 
 _snapshot_if_diff() {
+	maybe_echo "_snapshot_if_diff()"
 	if [ -z "$2" ]; then
 		echo "_snapshot_if_diff(): ERROR: nothing to diff"
 		return 1
@@ -64,14 +66,15 @@ _snapshot_if_diff() {
 	return 1
 }
 
-a_newer_than_b() {
+_a_newer_than_b() {
+	maybe_echo "_a_newer_than_b()"
 	A=$(date -r "$1" "+%s")
 	B=$(date -r "$2" "+%s")
 	[ "$A" -gt "$B" ]
 }
 
 _prepend_section_in_file() {
-	SECTION="$1"
+	maybe_echo "_prepend_section_in_file()"
 	FILE="$2"
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
 	if [ -z "$SECTION_READ" ]; then
@@ -81,7 +84,7 @@ _prepend_section_in_file() {
 }
 
 _append_section_in_file() {
-	SECTION="$1"
+	maybe_echo "_append_section_in_file()"
 	FILE="$2"
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
 	if [ -z "$SECTION_READ" ]; then
@@ -91,7 +94,7 @@ _append_section_in_file() {
 }
 
 _update_section_in_file() {
-	SECTION="$1"
+	maybe_echo "_update_section_in_file()"
 	FILE="$2"
 	# Read current from disk
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
@@ -861,6 +864,7 @@ load_python_completions() {
 }
 
 configure_ssh() {
+	maybe_echo "configure_ssh()"
 	read -r -d '' SSH_CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
 
