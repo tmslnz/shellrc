@@ -1021,6 +1021,9 @@ main() {
 	unset FUNCTIONS
 	unset -f maybe_prepend
 	unset -f maybe_append
+	unset -f prepend_section_in_file
+	unset -f append_section_in_file
+	unset -f update_section_in_file
 	unset -f is_darwin
 	unset -f is_linux
 	unset -f is_smart_terminal
