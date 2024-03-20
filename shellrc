@@ -110,7 +110,7 @@ _update_section_in_file() {
 		maybe_echo "... SHELLRC section in $_FILE is unchanged."
 		return 0
 	# Abort if: ssh config is newer than .shellrc
-	elif _a_newer_than_b "$_FILE" "$(get_shellrc_file)"; then
+	elif _a_newer_than_b "$_FILE" "$(_get_shellrc_file)"; then
 		maybe_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
 		return 0
 	fi
@@ -127,7 +127,7 @@ _update_section_in_file() {
 	unset _SECTION _SECTION_READ _FILE _TEMPFILE
 }
 
-get_shellrc_file() {
+_get_shellrc_file() {
 	SHELLRC_FILE=~/.shellrc
 	if command -v perl > /dev/null; then
 		SHELLRC_FILE=$(perl -MCwd -le 'print Cwd::abs_path(shift)' "$SHELLRC_FILE")
@@ -146,7 +146,7 @@ update_shellrc() {
 	# utc seconds: date "+%s"
 	# file modfied time: date -r <filename> "+%s"
 	# Find real .shellrc file if symlinked
-	SHELLRC_FILE=$(get_shellrc_file)
+	SHELLRC_FILE=$(_get_shellrc_file)
 	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
 		echo "... curl error"
 		return 1
