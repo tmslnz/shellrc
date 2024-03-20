@@ -868,7 +868,9 @@ load_python_completions() {
 
 configure_ssh() {
 	maybe_echo "configure_ssh()"
-	read -r -d '' SSH_CONFIG <<-'EOF'
+	CONFIGFILE=~/.ssh/config
+	[ -f "$CONFIGFILE" ] || return 1
+	read -r -d '' CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
 
 		## SSH client settings for all hosts
@@ -934,9 +936,9 @@ configure_ssh() {
 
 		# END_SHELLRC
 		EOF
-	_append_section_in_file "$SSH_CONFIG" ~/.ssh/config
-	_update_section_in_file "$SSH_CONFIG" ~/.ssh/config
-	unset SSH_CONFIG
+	_append_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
 }
 
 cleanup_macos() {
