@@ -70,6 +70,55 @@ a_newer_than_b() {
 	[ "$A" -gt "$B" ]
 }
 
+prepend_section_in_file() {
+	SECTION="$1"
+	FILE="$2"
+	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
+	if [ -z "$SECTION_READ" ]; then
+		printf '%s\n%s\n' "$SECTION" "$(cat "$FILE")" > "$FILE"
+	fi
+	unset SECTION FILE SECTION_READ
+}
+
+append_section_in_file() {
+	SECTION="$1"
+	FILE="$2"
+	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
+	if [ -z "$SECTION_READ" ]; then
+		printf '%s\n%s\n' "$(cat "$FILE")" "$SECTION" > "$FILE"
+	fi
+	unset SECTION FILE SECTION_READ
+}
+
+update_section_in_file() {
+	SECTION="$1"
+	FILE="$2"
+	# Read current from disk
+	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
+	# Abort if: no SHELLRC section is found
+	if [ -z "$SECTION_READ" ]; then
+		echo "... $FILE has no '..._SHELLRC' section"
+		return 0
+	# Abort if: SHELLRC section is unchanged
+	elif [ "$SECTION_READ" = "$SECTION" ]; then
+		return 0
+	# Abort if: ssh config is newer than .shellrc
+	elif a_newer_than_b "$FILE" "$(get_shellrc_file)"; then
+		echo "... $FILE is newer. Skipping"
+		return 0
+	fi
+	# Finally replace ssh config section with our section
+	TEMPFILE="$(mktemp)"
+	awk '
+		BEGIN { sv=ARGV[1]; delete ARGV[1] }
+		/BEGIN_SHELLRC/ { print sv; section=1; next }
+		/END_SHELLRC/ { section=0; next }
+		section {next}
+		{print}
+	' "$SECTION" "$FILE" > "$TEMPFILE" && mv "$TEMPFILE" "$FILE"
+	unset SECTION SECTION_READ FILE TEMPFILE
+}
+
 get_shellrc_file() {
 	SHELLRC_FILE=~/.shellrc
 	if command -v perl > /dev/null; then
@@ -911,54 +960,15 @@ configure_ssh() {
 	unset SSH_CONFIG SSH_CONFIG_READ TEMPFILE
 }
 
-prepend_section_in_file() {
-	SECTION="$1"
-	FILE="$2"
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
-	if [ -z "$SECTION_READ" ]; then
-		printf '%s\n%s\n' "$SECTION" "$(cat "$FILE")" > "$FILE"
-	fi
-	unset SECTION FILE SECTION_READ
-}
 
-append_section_in_file() {
-	SECTION="$1"
-	FILE="$2"
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
-	if [ -z "$SECTION_READ" ]; then
-		printf '%s\n%s\n' "$(cat "$FILE")" "$SECTION" > "$FILE"
-	fi
-	unset SECTION FILE SECTION_READ
-}
+read -r -d '' DEMO <<-'EOF'
+	# BEGIN_SHELLRC
+	Testicle
+	# END_SHELLRC
+	EOF
+touch ~/Desktop/text.txt
+update_section_in_file "$DEMO" ~/Desktop/text.txt
 
-update_section_in_file() {
-	SECTION="$1"
-	FILE="$2"
-	# Read current from disk
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
-	# Abort if: no SHELLRC section is found
-	if [ -z "$SECTION_READ" ]; then
-		echo "... $FILE has no '..._SHELLRC' section"
-		return 0
-	# Abort if: SHELLRC section is unchanged
-	elif [ "$SECTION_READ" = "$SECTION" ]; then
-		return 0
-	# Abort if: ssh config is newer than .shellrc
-	elif a_newer_than_b "$FILE" "$(get_shellrc_file)"; then
-		echo "... $FILE is newer. Skipping"
-		return 0
-	fi
-	# Finally replace ssh config section with our section
-	TEMPFILE="$(mktemp)"
-	awk '
-		BEGIN { sv=ARGV[1]; delete ARGV[1] }
-		/BEGIN_SHELLRC/ { print sv; section=1; next }
-		/END_SHELLRC/ { section=0; next }
-		section {next}
-		{print}
-	' "$SECTION" "$FILE" > "$TEMPFILE" && mv "$TEMPFILE" "$FILE"
-	unset SECTION SECTION_READ FILE TEMPFILE
-}
 
 cleanup_macos() {
 	is_darwin || return 0
