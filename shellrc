@@ -980,16 +980,16 @@ main() {
 		set_ls_colors
 		set_default_editor
 		make_aliases
+		configure_ssh
 		configure_readline
 		configure_zshell_line_editor
-		configure_ssh
 		configure_vim
+		configure_npm
 		load_bash_completion
 		load_zsh_completion
 		load_python_completions
-		configure_npm
-		make_utility_functions
 		load_python_autovenv
+		make_utility_functions
 		set_prompt_command
 		EOF
 	while IFS= read -r line || [[ -n $line ]]; do
