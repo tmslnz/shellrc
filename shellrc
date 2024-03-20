@@ -648,9 +648,9 @@ configure_readline() {
 configure_npm() {
 	maybe_echo "configure_npm()"
 	command -v npm > /dev/null || return 1
-	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
-	tee "$F" <<-EOF >/dev/null
+	FILE=$HOME/.inputrc
+	read -r -d '' CONFIG <<-EOF
 		; BEGIN_SHELLRC
 		userconfig="$NPM_CONFIG_USERCONFIG"
 		cache="$XDG_CACHE_HOME/npm"
@@ -662,23 +662,9 @@ configure_npm() {
 		long=true
 		; END_SHELLRC
 		EOF
-	if ! diff -EBq \
-		-I '^_.*' \
-		-I '*._auth.*' \
-		-I '*._pass.*' \
-		-I '^username.*' \
-		-I '^email.*' \
-		-I '^certfile.*' \
-		-I '^keyfile.*' \
-		-I '^ca=.*' \
-		-I '^ca\[.*' \
-		-I '^init-.*' \
-		"$NPM_CONFIG_USERCONFIG" "$F" &>/dev/null; then
-			echo "... writing $NPM_CONFIG_USERCONFIG"
-			_rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
-			cat "$F" > "$NPM_CONFIG_USERCONFIG"
-	fi
-	unset F
+	_prepend_section_in_file "$CONFIG" "$FILE"
+	_update_section_in_file "$CONFIG" "$FILE"
+	unset CONFIG FILE
 }
 
 configure_zshell_line_editor() {
