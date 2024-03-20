@@ -653,6 +653,7 @@ write_npmrc() {
 	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
 	tee "$F" <<-EOF >/dev/null
+		; BEGIN_SHELLRC
 		userconfig="$NPM_CONFIG_USERCONFIG"
 		cache="$XDG_CACHE_HOME/npm"
 		save-exact=true
@@ -661,6 +662,7 @@ write_npmrc() {
 		omit=optional
 		fund=false
 		long=true
+		; END_SHELLRC
 		EOF
 	if ! diff -EBq \
 		-I '^_.*' \
