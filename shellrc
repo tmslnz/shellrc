@@ -947,16 +947,6 @@ configure_ssh() {
 	unset SSH_CONFIG
 }
 
-
-read -r -d '' DEMO <<-'EOF'
-	# BEGIN_SHELLRC
-	Testicle
-	# END_SHELLRC
-	EOF
-touch ~/Desktop/text.txt
-update_section_in_file "$DEMO" ~/Desktop/text.txt
-
-
 cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
