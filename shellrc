@@ -75,53 +75,56 @@ _a_newer_than_b() {
 
 _prepend_section_in_file() {
 	maybe_echo "_prepend_section_in_file()"
-	FILE="$2"
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
-	if [ -z "$SECTION_READ" ]; then
-		printf '%s\n%s\n' "$SECTION" "$(cat "$FILE")" > "$FILE"
+	_SECTION="$1"
+	_FILE="$2"
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	if [ -z "$_SECTION_READ" ]; then
+		printf '%s\n%s\n' "$_SECTION" "$(cat "$_FILE")" > "$_FILE"
 	fi
-	unset SECTION FILE SECTION_READ
+	unset _SECTION _FILE _SECTION_READ
 }
 
 _append_section_in_file() {
 	maybe_echo "_append_section_in_file()"
-	FILE="$2"
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
-	if [ -z "$SECTION_READ" ]; then
-		printf '%s\n%s\n' "$(cat "$FILE")" "$SECTION" > "$FILE"
+	_SECTION="$1"
+	_FILE="$2"
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	if [ -z "$_SECTION_READ" ]; then
+		printf '%s\n%s\n' "$(cat "$_FILE")" "$_SECTION" > "$_FILE"
 	fi
-	unset SECTION FILE SECTION_READ
+	unset _SECTION _FILE _SECTION_READ
 }
 
 _update_section_in_file() {
 	maybe_echo "_update_section_in_file()"
-	FILE="$2"
+	_SECTION="$1"
+	_FILE="$2"
 	# Read current from disk
-	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
 	# Abort if: no SHELLRC section is found
-	if [ -z "$SECTION_READ" ]; then
-		maybe_echo "... $FILE has no SHELLRC section. Aborting."
+	if [ -z "$_SECTION_READ" ]; then
+		maybe_echo "... $_FILE has no SHELLRC section. Aborting."
 		return 0
 	# Abort if: SHELLRC section is unchanged
-	elif [ "$SECTION_READ" = "$SECTION" ]; then
-		maybe_echo "... SHELLRC section in $FILE is unchanged."
+	elif [ "$_SECTION_READ" = "$_SECTION" ]; then
+		maybe_echo "... SHELLRC section in $_FILE is unchanged."
 		return 0
 	# Abort if: ssh config is newer than .shellrc
-	elif a_newer_than_b "$FILE" "$(get_shellrc_file)"; then
-		maybe_echo "... SHELLRC section in $FILE has recent edits. Aborting."
+	elif _a_newer_than_b "$_FILE" "$(get_shellrc_file)"; then
+		maybe_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
 		return 0
 	fi
-	maybe_echo "... updating SHELLRC section in $FILE"
+	maybe_echo "... updating SHELLRC section in $_FILE"
 	# Finally replace ssh config section with our section
-	TEMPFILE="$(mktemp)"
+	_TEMPFILE="$(mktemp)"
 	awk '
 		BEGIN { sv=ARGV[1]; delete ARGV[1] }
 		/BEGIN_SHELLRC/ { print sv; section=1; next }
 		/END_SHELLRC/ { section=0; next }
 		section {next}
 		{print}
-	' "$SECTION" "$FILE" > "$TEMPFILE" && mv "$TEMPFILE" "$FILE"
-	unset SECTION SECTION_READ FILE TEMPFILE
+	' "$_SECTION" "$_FILE" > "$_TEMPFILE" && mv "$_TEMPFILE" "$_FILE"
+	unset _SECTION _SECTION_READ _FILE _TEMPFILE
 }
 
 get_shellrc_file() {
