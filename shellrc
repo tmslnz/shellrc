@@ -97,16 +97,18 @@ update_section_in_file() {
 	SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$FILE")
 	# Abort if: no SHELLRC section is found
 	if [ -z "$SECTION_READ" ]; then
-		echo "... $FILE has no '..._SHELLRC' section"
+		maybe_echo "... $FILE has no SHELLRC section. Aborting."
 		return 0
 	# Abort if: SHELLRC section is unchanged
 	elif [ "$SECTION_READ" = "$SECTION" ]; then
+		maybe_echo "... SHELLRC section in $FILE is unchanged."
 		return 0
 	# Abort if: ssh config is newer than .shellrc
 	elif a_newer_than_b "$FILE" "$(get_shellrc_file)"; then
-		echo "... $FILE is newer. Skipping"
+		maybe_echo "... SHELLRC section in $FILE has recent edits. Aborting."
 		return 0
 	fi
+	maybe_echo "... updating SHELLRC section in $FILE"
 	# Finally replace ssh config section with our section
 	TEMPFILE="$(mktemp)"
 	awk '
