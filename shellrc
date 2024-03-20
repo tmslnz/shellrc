@@ -588,7 +588,7 @@ configure_vim() {
 configure_readline() {
 	# https://www.gnu.org/software/bash/manual/html_node/Readline-Init-File-Syntax.html
 	maybe_echo "configure_readline()"
-	FILE=$HOME/.inputrc
+	CONFIGFILE=$HOME/.inputrc
 	read -r -d '' CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
 		# Use the text that has already been typed as the prefix for searching through
@@ -643,19 +643,19 @@ configure_readline() {
 		set completion-map-case on
 		# END_SHELLRC
 		EOF
-	_prepend_section_in_file "$CONFIG" "$FILE"
-	_update_section_in_file "$CONFIG" "$FILE"
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	if is_bash; then
-		bind -f "$FILE"
+		bind -f "$CONFIGFILE"
 	fi
-	unset CONFIG FILE
+	unset CONFIG CONFIGFILE
 }
 
 configure_npm() {
 	maybe_echo "configure_npm()"
 	command -v npm > /dev/null || return 1
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
-	FILE=$HOME/.inputrc
+	CONFIGFILE="$XDG_CONFIG_HOME/npmrc"
 	read -r -d '' CONFIG <<-EOF
 		; BEGIN_SHELLRC
 		userconfig="$NPM_CONFIG_USERCONFIG"
@@ -668,9 +668,9 @@ configure_npm() {
 		long=true
 		; END_SHELLRC
 		EOF
-	_prepend_section_in_file "$CONFIG" "$FILE"
-	_update_section_in_file "$CONFIG" "$FILE"
-	unset CONFIG FILE
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
 }
 
 configure_zshell_line_editor() {
