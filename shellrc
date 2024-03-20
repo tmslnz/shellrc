@@ -874,7 +874,6 @@ load_python_completions() {
 }
 
 configure_ssh() {
-	# Store standard config
 	read -r -d '' SSH_CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
 
@@ -930,36 +929,9 @@ configure_ssh() {
 
 		# END_SHELLRC
 		EOF
-
-	# Read config from disk
-	SSH_CONFIG_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' ~/.ssh/config)
-
-	# Prepend and return if: no SHELLRC section is found
-	if [ -z "$SSH_CONFIG_READ" ]; then
-		printf '%s\n%s\n' "$SSH_CONFIG" "$(cat ~/.ssh/config)" >~/.ssh/config
-		return 0
-	fi
-	
-	# Abort if: SHELLRC section is unchanged
-	if [ "$SSH_CONFIG_READ" = "$SSH_CONFIG" ]; then
-		return 0
-	# Abort if: ssh config is newer than .shellrc
-	elif a_newer_than_b ~/.ssh/config "$(get_shellrc_file)"; then
-		echo "... ~/.ssh/config is newer. Skipping"
-		return 0
-	fi
-
-	# Finally replace ssh config section with our section
-	TEMPFILE="$(mktemp)"
-	awk '
-		BEGIN { sv=ARGV[1]; delete ARGV[1] }
-		/BEGIN_SHELLRC/ { print sv; section=1; next }
-		/END_SHELLRC/ { section=0; next }
-		section {next}
-		{print}
-	' "$SSH_CONFIG" ~/.ssh/config > "$TEMPFILE" && mv "$TEMPFILE" ~/.ssh/config
-
-	unset SSH_CONFIG SSH_CONFIG_READ TEMPFILE
+	append_section_in_file "$SSH_CONFIG" ~/.ssh/config
+	update_section_in_file "$SSH_CONFIG" ~/.ssh/config
+	unset SSH_CONFIG
 }
 
 
@@ -1015,6 +987,7 @@ main() {
 		make_aliases
 		write_inputrc
 		configure_zshell_line_editor
+		configure_ssh
 		configure_vim
 		load_bash_completion
 		load_zsh_completion
