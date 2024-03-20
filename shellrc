@@ -823,43 +823,94 @@ load_python_completions() {
 }
 
 configure_ssh() {
-	has_host() {
-		awk -v c=1 '/^Host '"$1"'/,/^$/{c=!($2<100)}END{exit c}' ~/.ssh/config
-	}
+	# Store standard config
 	read -r -d '' SSH_CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
-		# testing
-		# Tssdasd
+
+		## SSH client settings for all hosts
+		##
+
+		ServerAliveInterval 30
+		ServerAliveCountMax 120
+		Compression yes
+		UseRoaming no
+
+		## Useful to auto-unlock keys macOS
+		Host *
+		    AddKeysToAgent yes
+		    UseKeychain yes
+
+		## Work
+		##
+
+		Host workers theworkers opalstack
+		    HostName opal6.opalstack.com
+		    User theworkers
+
+		Host nebula
+		    HostName 135.181.203.23
+		    User root
+
+		Host gitea
+		    # Used for interactive shells
+		    HostName opal6.opalstack.com
+		    User theworkers_gitea
+		    IdentityFile ~/.ssh/id_ed25519_gitea
+		    IdentitiesOnly yes
+
+		Host code.theworkers.net
+		    # Used by `git` commands
+		    HostName code.theworkers.net
+		    User theworkers_gitea
+		    IdentityFile ~/.ssh/id_ed25519
+		    IdentitiesOnly yes
+
+		## Projects
+		##
+
+		Host blackburn
+		    HostName studio-blackburn.opalstacked.com
+		    User studio_blackburn
+
+		Host thenewschool parsons
+		    HostName thenewschool.opalstacked.com
+		    User thenewschool
+		    IdentityFile ~/.ssh/id_ed25519
+
 		# END_SHELLRC
 		EOF
+
+	# Read config from disk
 	SSH_CONFIG_READ=$(awk '/# ?BEGIN_SHELLRC/,/# ?END_SHELLRC/{print $0}' ~/.ssh/config)
-	# If no SHELLRC section is found, prepend it
+
+	# Prepend and return if: no SHELLRC section is found
 	if [ -z "$SSH_CONFIG_READ" ]; then
 		printf '%s\n%s\n' "$SSH_CONFIG" "$(cat ~/.ssh/config)" >~/.ssh/config
 		return 0
 	fi
-	# If SHELLRC section is unchanged, return
-	[ "$SSH_CONFIG_READ" = "$SSH_CONFIG" ] && return 0
-	# If ssh config is newer than .shellrc, abort
-	if a_newer_than_b ~/.ssh/config "$(get_shellrc_file)"; then
-		"... ~/.ssh/config is newer. Skipping"
+	
+	# Abort if: SHELLRC section is unchanged
+	if [ "$SSH_CONFIG_READ" = "$SSH_CONFIG" ]; then
+		return 0
+	# Abort if: ssh config is newer than .shellrc
+	elif a_newer_than_b ~/.ssh/config "$(get_shellrc_file)"; then
+		echo "... ~/.ssh/config is newer. Skipping"
 		return 0
 	fi
-	# Finally replace ssh config section with our section
-	awk '
-	/# BEGIN_SHELLRC/ {string=ARGV[1]; ARGV[1]=""; print string; section=1; next}
-	/# END_SHELLRC/ {section=0}
-	section {next}
-	{print}
-	' "$SSH_CONFIG" .ssh/config
 
-	# awk -v new_file=new_banner.txt '
-	# /# BEGIN_SHELLRC/ {print; system("cat " new_file); banner=1; next}
-	# /# END_SHELLRC/ {banner=0}
-	# banner {next}
-	# {print}
-	# ' a.html
+	# Finally replace ssh config section with our section
+	TEMPFILE="$(mktemp)"
+	awk '
+		BEGIN { sv=ARGV[1]; delete ARGV[1] }
+		/# BEGIN_SHELLRC/ { print sv; section=1; next }
+		/# END_SHELLRC/ { section=0; next }
+		section {next}
+		{print}
+	' "$SSH_CONFIG" ~/.ssh/config > "$TEMPFILE" && mv "$TEMPFILE" ~/.ssh/config
+
+	unset SSH_CONFIG SSH_CONFIG_READ TEMPFILE
 }
+
 cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
