@@ -7,6 +7,8 @@
 #  ~/.zshrc
 #  ~/.profile
 
+# SHELLRC_DEBUG=true
+
 # Prevent sourcing more than once per session
 if [ "$SHELLRC_SOURCED" ]; then return 0; fi
 SHELLRC_SOURCED=true
