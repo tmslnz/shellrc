@@ -14,12 +14,13 @@ if [ "$SHELLRC_SOURCED" ]; then return 0; fi
 SHELLRC_SOURCED=true
 
 maybe_echo() {
-	[ -z $SHELLRC_DEBUG ] && return 0
+	[ -z "$SHELLRC_DEBUG" ] && return 0
 	[ $SHELLRC_DEBUG = true ] && echo "$1"
 }
 
 maybe_echo "$HOME/.shellrc"
 
+# shellcheck disable=SC2317
 is_darwin() {
 	case $(uname) in
 		"Darwin"*) return 0;;
@@ -27,6 +28,7 @@ is_darwin() {
 	esac
 }
 
+# shellcheck disable=SC2317
 is_linux() {
 	case $(uname) in
 		"Linux"*) return 0;;
@@ -34,43 +36,105 @@ is_linux() {
 	esac
 }
 
+# shellcheck disable=SC2317
 is_bash() {
 	[ -z "$BASH_VERSION" ] && return 1
 	return 0
 }
 
+# shellcheck disable=SC2317
 is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1
 	return 0
 }
 
-rename_with_timestamp() {
+_rename_with_timestamp() {
+	maybe_echo "_rename_with_timestamp()"
 	TS=$(date -u +"%Y-%m-%dT%H%M%S")
 	mv "$1" "$1-$TS" > /dev/null 2>&1
 	unset TS
 }
 
-snapshot_if_diff() {
+_snapshot_if_diff() {
+	maybe_echo "_snapshot_if_diff()"
 	if [ -z "$2" ]; then
-		echo "snapshot_if_diff(): ERROR: nothing to diff"
+		echo "_snapshot_if_diff(): ERROR: nothing to diff"
 		return 1
 	fi
 	if ! diff -EBq "$1" "$2" &>/dev/null; then
 		echo "... writing $1"
-		rename_with_timestamp "$1"
+		_rename_with_timestamp "$1"
 		cat "$2" > "$1"
 		return 0
 	fi
 	return 1
 }
 
-a_newer_than_b() {
+_a_newer_than_b() {
+	maybe_echo "_a_newer_than_b()"
 	A=$(date -r "$1" "+%s")
 	B=$(date -r "$2" "+%s")
 	[ "$A" -gt "$B" ]
 }
 
-get_shellrc_file() {
+# shellcheck disable=SC2317
+_prepend_section_in_file() {
+	maybe_echo "_prepend_section_in_file()"
+	_SECTION="$1"
+	_FILE="$2"
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	if [ -z "$_SECTION_READ" ]; then
+		printf '%s\n%s\n' "$_SECTION" "$(cat "$_FILE")" > "$_FILE"
+	fi
+	unset _SECTION _FILE _SECTION_READ
+}
+
+# shellcheck disable=SC2317
+_append_section_in_file() {
+	maybe_echo "_append_section_in_file()"
+	_SECTION="$1"
+	_FILE="$2"
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	if [ -z "$_SECTION_READ" ]; then
+		printf '%s\n%s\n' "$(cat "$_FILE")" "$_SECTION" > "$_FILE"
+	fi
+	unset _SECTION _FILE _SECTION_READ
+}
+
+# shellcheck disable=SC2317
+_update_section_in_file() {
+	maybe_echo "_update_section_in_file()"
+	_SECTION="$1"
+	_FILE="$2"
+	# Read current from disk
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	# Abort if: no SHELLRC section is found
+	if [ -z "$_SECTION_READ" ]; then
+		maybe_echo "... $_FILE has no SHELLRC section. Aborting."
+		return 0
+	# Abort if: SHELLRC section is unchanged
+	elif [ "$_SECTION_READ" = "$_SECTION" ]; then
+		maybe_echo "... SHELLRC section in $_FILE is unchanged."
+		return 0
+	# Abort if: ssh config is newer than .shellrc
+	elif _a_newer_than_b "$_FILE" "$(_get_shellrc_file)"; then
+		maybe_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
+		return 0
+	fi
+	maybe_echo "... updating SHELLRC section in $_FILE"
+	# Finally replace ssh config section with our section
+	_TEMPFILE="$(mktemp)"
+	awk '
+		BEGIN { sv=ARGV[1]; delete ARGV[1] }
+		/BEGIN_SHELLRC/ { print sv; section=1; next }
+		/END_SHELLRC/ { section=0; next }
+		section {next}
+		{print}
+	' "$_SECTION" "$_FILE" > "$_TEMPFILE" && mv "$_TEMPFILE" "$_FILE"
+	unset _SECTION _SECTION_READ _FILE _TEMPFILE
+}
+
+_get_shellrc_file() {
 	SHELLRC_FILE=~/.shellrc
 	if command -v perl > /dev/null; then
 		SHELLRC_FILE=$(perl -MCwd -le 'print Cwd::abs_path(shift)' "$SHELLRC_FILE")
@@ -89,31 +153,32 @@ update_shellrc() {
 	# utc seconds: date "+%s"
 	# file modfied time: date -r <filename> "+%s"
 	# Find real .shellrc file if symlinked
-	SHELLRC_FILE=$(get_shellrc_file)
+	SHELLRC_FILE=$(_get_shellrc_file)
 	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
 		echo "... curl error"
 		return 1
 	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
 		echo "... writing $SHELLRC_FILE"
-		rename_with_timestamp "$SHELLRC_FILE"
+		_rename_with_timestamp "$SHELLRC_FILE"
 		cat "$F" > "$SHELLRC_FILE"
-		source "$SHELLRC_FILE"
+		# shellcheck disable=SC1090
+		. "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
 	fi
 	unset F SHELLRC_FILE
 }
 
-install_sh() {
+setup_sh() {
 	is_bash || is_zsh && return 0
-	maybe_echo "install_sh()"
+	maybe_echo "setup_sh()"
 	FILES="$HOME/.profile"
 	for F in ${FILES}; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env sh
 				[ -f ~/.shellrc ] && source ~/.shellrc
@@ -123,15 +188,15 @@ install_sh() {
 	unset FILES F
 }
 
-install_bash() {
+setup_bash() {
 	is_bash || return 0
-	maybe_echo "install_bash()"
+	maybe_echo "setup_bash()"
 	FILES=("$HOME/.bash_profile" "$HOME/.bashrc")
 	for F in "${FILES[@]}"; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env bash
 				[ -f /etc/bashrc ] && /etc/bashrc
@@ -161,16 +226,16 @@ disable_homebrew_bash() {
 	sudo chsh -s /bin/bash
 }
 
-install_zsh() {
+setup_zsh() {
 	is_zsh || return 0
-	maybe_echo "install_zsh()"
+	maybe_echo "setup_zsh()"
 	# FILES=("$HOME/.zprofile" "$HOME/.zshrc")
 	FILES=("$HOME/.zshrc") # Seems to be setting only from here
 	for F in "${FILES[@]}"; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
 			continue
 		else
-			[ -f "$F" ] && rename_with_timestamp "$F"
+			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env zsh
 				[ -f ~/.shellrc ] && source ~/.shellrc
@@ -198,6 +263,7 @@ set_shell_options() {
 	[ -f "$HOME/.hushlogin" ] || touch "$HOME/.hushlogin"
 }
 
+# shellcheck disable=SC3044
 set_bash_options() {
 	is_bash || return 0
 	maybe_echo "set_bash_options()"
@@ -246,6 +312,7 @@ set_bash_options() {
 	# export dropbox="$HOME/Dropbox"
 }
 
+# shellcheck disable=SC2034
 set_zsh_options() {
 	is_zsh || return 0
 	maybe_echo "set_zsh_options()"
@@ -291,7 +358,9 @@ set_xdg_directories() {
 	# XDG_CONFIG_DIRS
 }
 
+# shellcheck disable=SC2317
 is_smart_terminal() {
+	maybe_echo "is_smart_terminal()"
 	case "$TERM" in
 		"dumb")
 			return 1;;
@@ -317,6 +386,7 @@ set_zsh_prompt_string() {
 		PS1="> "
 		return 0
 	fi
+	# shellcheck disable=SC2034
 	PROMPT=$'%B%n%{\e[2m%}@%m%{\e[0;2m%}:%{\e[0m%}%~%{\e[2m%} \xe2\x97\x8f %{\e[0m%}'
 }
 
@@ -330,6 +400,7 @@ set_ls_colors() {
 	else # OS X `ls`
 		LS_COLOR_FLAG="-G"
 	fi
+	# shellcheck disable=SC2139
 	alias ls="command ls ${LS_COLOR_FLAG}"
 	# export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
 	unset LS_COLOR_FLAG
@@ -348,8 +419,9 @@ make_aliases() {
 	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
 	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
 	if ! is_available pgrep; then
+		# shellcheck disable=SC2317
 		psgrep () {
-			ps aux | egrep -v grep | egrep $1 | awk '{print $2}'
+			ps aux | egrep -v grep | egrep "$1" | awk '{print $2}'
 		}
 	fi
 	is_darwin && alias ip="ipconfig getifaddr en0"
@@ -369,8 +441,9 @@ configure_nano() {
 	F=$(mktemp)
 	command -v nano > /dev/null || return 1
 	maybe_echo "configure_nano()"
+	# shellcheck disable=SC2317
 	includes() {
-		grep -xqs '.*include.*'$1'.*' $2
+		grep -xqs '.*include.*'"$1"'.*' "$2"
 	}
 	## TODO
 	# on Linux, /etc/nanorc
@@ -528,10 +601,12 @@ configure_vim() {
 	unset VIM_HOME F
 }
 
-write_inputrc() {
-	maybe_echo "write_inputrc()"
-	F=$(mktemp)
-	tee "$F" <<-'EOF' >/dev/null
+configure_readline() {
+	# https://www.gnu.org/software/bash/manual/html_node/Readline-Init-File-Syntax.html
+	maybe_echo "configure_readline()"
+	CONFIGFILE=$HOME/.inputrc
+	read -r -d '' CONFIG <<-'EOF'
+		# BEGIN_SHELLRC
 		# Use the text that has already been typed as the prefix for searching through
 		# commands (i.e. more intelligent Up/Down behavior)
 		"\e[A": history-search-backward
@@ -582,26 +657,23 @@ write_inputrc() {
 
 		# Treat hyphens and underscores as equivalent
 		set completion-map-case on
+		# END_SHELLRC
 		EOF
-	# https://stackoverflow.com/questions/9847479/use-pipe-of-commands-as-argument-for-diff
-	# echo $F | diff -EBq ~/.inputrc -
-	if ! diff -EBq ~/.inputrc "$F" > /dev/null 2>&1; then
-		echo "... writing $HOME/.inputrc"
-		rename_with_timestamp "$HOME/.inputrc" && \
-		cat "$F" > ~/.inputrc
-	fi
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	if is_bash; then
-		bind -f "$HOME/.inputrc"
+		bind -f "$CONFIGFILE"
 	fi
-	unset F
+	unset CONFIG CONFIGFILE
 }
 
-write_npmrc() {
-	maybe_echo "write_npmrc()"
+configure_npm() {
+	maybe_echo "configure_npm()"
 	command -v npm > /dev/null || return 1
-	F=$(mktemp)
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
-	tee "$F" <<-EOF >/dev/null
+	CONFIGFILE="$XDG_CONFIG_HOME/npmrc"
+	read -r -d '' CONFIG <<-EOF
+		; BEGIN_SHELLRC
 		userconfig="$NPM_CONFIG_USERCONFIG"
 		cache="$XDG_CACHE_HOME/npm"
 		save-exact=true
@@ -610,24 +682,11 @@ write_npmrc() {
 		omit=optional
 		fund=false
 		long=true
+		; END_SHELLRC
 		EOF
-	if ! diff -EBq \
-		-I '^_.*' \
-		-I '*._auth.*' \
-		-I '*._pass.*' \
-		-I '^username.*' \
-		-I '^email.*' \
-		-I '^certfile.*' \
-		-I '^keyfile.*' \
-		-I '^ca=.*' \
-		-I '^ca\[.*' \
-		-I '^init-.*' \
-		"$NPM_CONFIG_USERCONFIG" "$F" &>/dev/null; then
-			echo "... writing $NPM_CONFIG_USERCONFIG"
-			rename_with_timestamp "$NPM_CONFIG_USERCONFIG"
-			cat "$F" > "$NPM_CONFIG_USERCONFIG"
-	fi
-	unset F
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
 }
 
 configure_zshell_line_editor() {
@@ -639,6 +698,7 @@ configure_zshell_line_editor() {
 	bindkey "\eOB" history-search-forward
 }
 
+# shellcheck disable=SC2317
 load_python_autovenv() {
 	maybe_echo "load_python_autovenv()"
 	# From:
@@ -646,18 +706,18 @@ load_python_autovenv() {
 	# Also worth looking at:
 	#   https://github.com/hyperupcall/autoenv
 	venv_candidates() {
-		echo $1/.venv
-		echo $1/.env
+		echo "$1/.venv"
+		echo "$1/.env"
 	}
 	venv_find() {
 		local venv_root=${1:-"."}
 		local venv_found=""
 		for (( i=10; i > 0; i-- )); do
-			local venv_real=$(cd $venv_root && pwd -P)
+			local venv_real=$(cd "$venv_root" && pwd -P)
 			local venv_name=$(basename "$venv_real")
-			for candidate in $( venv_candidates $venv_real ) ; do
+			for candidate in $( venv_candidates "$venv_real" ) ; do
 				if [ -f "$candidate/bin/activate" ]; then
-					echo $(cd $candidate && pwd -P)
+					echo "$(cd "$candidate" && pwd -P)"
 					return
 				fi
 			done
@@ -669,30 +729,30 @@ load_python_autovenv() {
 		done
 	}
 	venv_curr() {
-		if [ -n "$VIRTUAL_ENV" -a "$(type -t deactivate)" = 'function' ]; then
-			echo $VIRTUAL_ENV
+		if [ -n "$VIRTUAL_ENV" ] && [ "$(type -t deactivate)" = 'function' ]; then
+			echo "$VIRTUAL_ENV"
 		fi
 	}
 	venv_auto() {
 		venv_new="$(venv_find)"
 		venv_old="$(venv_curr)"
-		if [ -z "$venv_new" -a -n "$venv_old" ]; then
-			echo "Deactivating $(_venv_name $venv_old)..."
+		if [ -z "$venv_new" ] && [ -n "$venv_old" ]; then
+			echo "Deactivating $(_venv_name "$venv_old")..."
 			deactivate
-		elif [ -n "$venv_new" -a "$venv_new" != "$venv_old" ]; then
-			echo "Activating $(_venv_name $venv_new)..."
-			source "$venv_new"/bin/activate
+		elif [ -n "$venv_new" ] && [ "$venv_new" != "$venv_old" ]; then
+			echo "Activating $(_venv_name "$venv_new")..."
+			. "$venv_new"/bin/activate
 		fi
 	}
 	_venv_ps1() {
 		if [[ -z "$VIRTUAL_ENV" ]]; then
 			printf ""
 		else
-			printf "$(basename $(dirname $(venv_curr)))"
+			printf "%s" "$(basename "$(dirname "$(venv_curr)")")"
 		fi
 	}
 	_venv_name() {
-		printf $(basename $(dirname $1))
+		printf "%s" "$(basename "$(dirname "$1")")"
 	}
 }
 
@@ -756,8 +816,10 @@ set_path() {
 		done
 	fi
 	unset D
+	unset -f maybe_prepend maybe_append
 }
 
+# shellcheck disable=SC2317
 make_utility_functions() {
 	wordpress_delete_thumbnails() {
 		if [[ "$(pwd)" == *"/uploads"* ]]; then
@@ -791,7 +853,8 @@ load_bash_completion() {
 		[ -f "$P" ] && maybe_echo "... $P"
 		if [[ $PS1 && -f $P ]]; then
 			unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
-			source "$P"
+			# shellcheck disable=SC1090
+			. "$P"
 			break
 		fi
 	done
@@ -823,43 +886,80 @@ load_python_completions() {
 }
 
 configure_ssh() {
-	has_host() {
-		awk -v c=1 '/^Host '"$1"'/,/^$/{c=!($2<100)}END{exit c}' ~/.ssh/config
-	}
-	read -r -d '' SSH_CONFIG <<-'EOF'
+	maybe_echo "configure_ssh()"
+	CONFIGFILE=~/.ssh/config
+	[ -f "$CONFIGFILE" ] || return 1
+	read -r -d '' CONFIG <<-'EOF'
 		# BEGIN_SHELLRC
-		# testing
-		# Tssdasd
+
+		## SSH client settings for all hosts
+		##
+
+		ServerAliveInterval 30
+		ServerAliveCountMax 120
+		Compression yes
+		UseRoaming no
+
+		## Useful to auto-unlock keys macOS
+		Host *
+		    AddKeysToAgent yes
+		    UseKeychain yes
+
+		## Work
+		##
+
+		Host workers theworkers opalstack
+		    HostName opal6.opalstack.com
+		    User theworkers
+
+		Host cuba_admin_nebula
+		    # Requires Nebula connection
+		    HostName 100.100.1.1
+		    User theworkers
+		    Port 451
+
+		Host cuba_admin_lan
+		    HostName cuba
+		    User theworkers
+		    Port 451
+
+		Host nebula
+		    HostName 135.181.203.23
+		    User root
+
+		Host gitea
+		    # Used for interactive shells
+		    HostName opal6.opalstack.com
+		    User theworkers_gitea
+		    IdentityFile ~/.ssh/id_ed25519_gitea
+		    IdentitiesOnly yes
+
+		Host code.theworkers.net
+		    # Used by `git` commands
+		    HostName code.theworkers.net
+		    User theworkers_gitea
+		    IdentityFile ~/.ssh/id_ed25519
+		    IdentitiesOnly yes
+
+		## Projects
+		##
+
+		Host blackburn
+		    HostName studio-blackburn.opalstacked.com
+		    User studio_blackburn
+
+		Host thenewschool parsons
+		    HostName thenewschool.opalstacked.com
+		    User thenewschool
+		    IdentityFile ~/.ssh/id_ed25519
+
 		# END_SHELLRC
 		EOF
-	SSH_CONFIG_READ=$(awk '/# ?BEGIN_SHELLRC/,/# ?END_SHELLRC/{print $0}' ~/.ssh/config)
-	# If no SHELLRC section is found, prepend it
-	if [ -z "$SSH_CONFIG_READ" ]; then
-		printf '%s\n%s\n' "$SSH_CONFIG" "$(cat ~/.ssh/config)" >~/.ssh/config
-		return 0
-	fi
-	# If SHELLRC section is unchanged, return
-	[ "$SSH_CONFIG_READ" = "$SSH_CONFIG" ] && return 0
-	# If ssh config is newer than .shellrc, abort
-	if a_newer_than_b ~/.ssh/config "$(get_shellrc_file)"; then
-		"... ~/.ssh/config is newer. Skipping"
-		return 0
-	fi
-	# Finally replace ssh config section with our section
-	awk '
-	/# BEGIN_SHELLRC/ {string=ARGV[1]; ARGV[1]=""; print string; section=1; next}
-	/# END_SHELLRC/ {section=0}
-	section {next}
-	{print}
-	' "$SSH_CONFIG" .ssh/config
-
-	# awk -v new_file=new_banner.txt '
-	# /# BEGIN_SHELLRC/ {print; system("cat " new_file); banner=1; next}
-	# /# END_SHELLRC/ {banner=0}
-	# banner {next}
-	# {print}
-	# ' a.html
+	_append_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
 }
+
 cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
@@ -892,9 +992,9 @@ set_prompt_command() {
 main() {
 	maybe_echo "main()"
 	read -r -d '' FUNCTIONS <<-'EOF'
-		install_sh
-		install_bash
-		install_zsh
+		setup_sh
+		setup_bash
+		setup_zsh
 		set_locale
 		set_bash_prompt_string
 		set_zsh_prompt_string
@@ -908,15 +1008,16 @@ main() {
 		set_ls_colors
 		set_default_editor
 		make_aliases
-		write_inputrc
+		configure_ssh
+		configure_readline
 		configure_zshell_line_editor
 		configure_vim
+		configure_npm
 		load_bash_completion
 		load_zsh_completion
 		load_python_completions
-		write_npmrc
-		make_utility_functions
 		load_python_autovenv
+		make_utility_functions
 		set_prompt_command
 		EOF
 	while IFS= read -r line || [[ -n $line ]]; do
@@ -926,15 +1027,14 @@ main() {
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS")
 	unset FUNCTIONS
-	unset -f maybe_prepend
-	unset -f maybe_append
+	unset -f _prepend_section_in_file
+	unset -f _append_section_in_file
+	unset -f _update_section_in_file
 	unset -f is_darwin
 	unset -f is_linux
 	unset -f is_smart_terminal
 	unset -f is_bash
 	unset -f is_zsh
-	unset -f rename_with_timestamp
-	unset -f snapshot_if_diff
 }
 
 main
