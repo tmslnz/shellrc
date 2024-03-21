@@ -14,7 +14,7 @@ if [ "$SHELLRC_SOURCED" ]; then return 0; fi
 SHELLRC_SOURCED=true
 
 maybe_echo() {
-	[ -z $SHELLRC_DEBUG ] && return 0
+	[ -z "$SHELLRC_DEBUG" ] && return 0
 	[ $SHELLRC_DEBUG = true ] && echo "$1"
 }
 
