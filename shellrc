@@ -599,7 +599,7 @@ configure_readline() {
 	# https://www.gnu.org/software/bash/manual/html_node/Readline-Init-File-Syntax.html
 	maybe_echo "configure_readline()"
 	CONFIGFILE=$HOME/.inputrc
-	read -r -d '' CONFIG <<-'EOF'
+	{ CONFIG=$(cat) ; } <<-'EOF'
 		# BEGIN_SHELLRC
 		# Use the text that has already been typed as the prefix for searching through
 		# commands (i.e. more intelligent Up/Down behavior)
@@ -666,7 +666,7 @@ configure_npm() {
 	command -v npm > /dev/null || return 1
 	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
 	CONFIGFILE="$XDG_CONFIG_HOME/npmrc"
-	read -r -d '' CONFIG <<-EOF
+	{ CONFIG=$(cat) ; } <<-EOF
 		; BEGIN_SHELLRC
 		userconfig="$NPM_CONFIG_USERCONFIG"
 		cache="$XDG_CACHE_HOME/npm"
@@ -882,7 +882,7 @@ configure_ssh() {
 	maybe_echo "configure_ssh()"
 	CONFIGFILE=~/.ssh/config
 	[ -f "$CONFIGFILE" ] || return 1
-	read -r -d '' CONFIG <<-'EOF'
+	{ CONFIG=$(cat) ; } <<-'EOF'
 		# BEGIN_SHELLRC
 
 		## SSH client settings for all hosts
@@ -984,7 +984,7 @@ set_prompt_command() {
 
 main() {
 	maybe_echo "main()"
-	read -r -d '' FUNCTIONS_1 <<-'EOF'
+	{ FUNCTIONS_1=$(cat) ; } <<-'EOF'
 		setup_sh
 		setup_bash
 		setup_zsh
@@ -1024,7 +1024,7 @@ main() {
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_1")
 	unset FUNCTIONS_1
-	read -r -d '' FUNCTIONS_2 <<-'EOF'
+	{ FUNCTIONS_2=$(cat) ; } <<-'EOF'
 		_prepend_section_in_file
 		_append_section_in_file
 		_update_section_in_file
