@@ -181,6 +181,21 @@ setup_sh() {
 setup_bash() {
 	is_bash || return 0
 	maybe_echo "setup_bash()"
+	if [ "$BASH_VERSINFO" -lt 4 ]; then
+		echo "You are using a very old version of Bash: $BASH_VERSION"
+		if is_darwin && command -v brew > /dev/null; then
+			echo "Run:"
+			echo "$ brew install bash"
+			echo "$ enable_homebrew_bash"
+		elif is_darwin; then
+			echo "$ Please install \"Homebrew\" from https://brew.sh"
+			echo "$ enable_homebrew_bash"
+		else
+			echo "Please update Bash"
+		fi
+		echo "To silence this message add this to your ~.bashrc"
+		echo "export SILENCE_SHELLRC_WARNINGS=true"
+	fi
 	CONFIGFILE=$HOME/.bash_profile
 	{ CONFIG=$(cat) ; } <<-'EOF'
 		# BEGIN_SHELLRC
