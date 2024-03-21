@@ -706,8 +706,8 @@ load_python_autovenv() {
 	# Also worth looking at:
 	#   https://github.com/hyperupcall/autoenv
 	venv_candidates() {
-		echo $1/.venv
-		echo $1/.env
+		echo "$1/.venv"
+		echo "$1/.env"
 	}
 	venv_find() {
 		local venv_root=${1:-"."}
