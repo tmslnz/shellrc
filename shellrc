@@ -188,9 +188,9 @@ setup_sh() {
 	unset FILES F
 }
 
-install_bash() {
+setup_bash() {
 	is_bash || return 0
-	maybe_echo "install_bash()"
+	maybe_echo "setup_bash()"
 	FILES=("$HOME/.bash_profile" "$HOME/.bashrc")
 	for F in "${FILES[@]}"; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
@@ -226,9 +226,9 @@ disable_homebrew_bash() {
 	sudo chsh -s /bin/bash
 }
 
-install_zsh() {
+setup_zsh() {
 	is_zsh || return 0
-	maybe_echo "install_zsh()"
+	maybe_echo "setup_zsh()"
 	# FILES=("$HOME/.zprofile" "$HOME/.zshrc")
 	FILES=("$HOME/.zshrc") # Seems to be setting only from here
 	for F in "${FILES[@]}"; do
@@ -985,9 +985,9 @@ set_prompt_command() {
 main() {
 	maybe_echo "main()"
 	read -r -d '' FUNCTIONS <<-'EOF'
-		install_sh
-		install_bash
-		install_zsh
+		setup_sh
+		setup_bash
+		setup_zsh
 		set_locale
 		set_bash_prompt_string
 		set_zsh_prompt_string
