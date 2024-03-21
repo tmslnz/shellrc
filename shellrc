@@ -874,6 +874,13 @@ cleanup_macos() {
 set_locale() {
 	maybe_echo "set_locale()"
 	# macOS only recognises "UTF-8", not "utf8"
+	read -r -d '' LOCALE_PATHS <<-'EOF'
+		/usr/local/share/locale
+		/usr/lib/locale
+		EOF
+	while IFS= read -r line || [[ -n $line ]]; do
+		"$line"
+	done < <(printf '%s' locale -a)
 	export LC_ALL=en_US.UTF-8
 	export LANG=en_US.UTF-8
 }
