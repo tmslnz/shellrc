@@ -713,9 +713,9 @@ load_python_autovenv() {
 		local venv_root=${1:-"."}
 		local venv_found=""
 		for (( i=10; i > 0; i-- )); do
-			local venv_real=$(cd $venv_root && pwd -P)
+			local venv_real=$(cd "$venv_root" && pwd -P)
 			local venv_name=$(basename "$venv_real")
-			for candidate in $( venv_candidates $venv_real ) ; do
+			for candidate in $( venv_candidates "$venv_real" ) ; do
 				if [ -f "$candidate/bin/activate" ]; then
 					echo "$(cd "$candidate" && pwd -P)"
 					return
