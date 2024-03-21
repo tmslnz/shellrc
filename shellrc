@@ -49,21 +49,6 @@ _rename_with_timestamp() {
 	unset TS
 }
 
-_snapshot_if_diff() {
-	maybe_echo "_snapshot_if_diff()"
-	if [ -z "$2" ]; then
-		echo "_snapshot_if_diff(): ERROR: nothing to diff"
-		return 1
-	fi
-	if ! diff -EBq "$1" "$2" &>/dev/null; then
-		echo "... writing $1"
-		_rename_with_timestamp "$1"
-		cat "$2" > "$1"
-		return 0
-	fi
-	return 1
-}
-
 _a_newer_than_b() {
 	maybe_echo "_a_newer_than_b()"
 	A=$(date -r "$1" "+%s")
