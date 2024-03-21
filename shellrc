@@ -884,7 +884,7 @@ load_python_completions() {
 	maybe_echo "load_python_completions()"
 	command -v 'register-python-argcomplete' > /dev/null || return 1
 	load_python_completion() {
-		command -v "$1" > /dev/null && eval "$(register-python-argcomplete $1)"
+		command -v "$1" > /dev/null && eval "$(register-python-argcomplete "$1")"
 	}
 	load_python_completion pipx
 	unset -f load_python_completion
