@@ -184,7 +184,7 @@ setup_sh() {
 			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env sh
-				[ -f ~/.shellrc ] && source ~/.shellrc
+				[ -f ~/.shellrc ] && . ~/.shellrc
 				EOF
 		fi
 	done
@@ -202,8 +202,8 @@ setup_bash() {
 			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env bash
-				[ -f /etc/bashrc ] && /etc/bashrc
-				[ -f ~/.shellrc ] && source ~/.shellrc
+				[ -f /etc/bashrc ] && . /etc/bashrc
+				[ -f ~/.shellrc ] && . ~/.shellrc
 				EOF
 		fi
 	done
@@ -241,7 +241,7 @@ setup_zsh() {
 			[ -f "$F" ] && _rename_with_timestamp "$F"
 			tee "$F" <<-EOF >/dev/null
 				#!/usr/bin/env zsh
-				[ -f ~/.shellrc ] && source ~/.shellrc
+				[ -f ~/.shellrc ] && . ~/.shellrc
 				EOF
 		fi
 	done
