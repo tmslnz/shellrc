@@ -464,40 +464,45 @@ configure_nano() {
 	#    - /opt/homebrew/share/nanorc/...
 	#    - ~/.nano/nanorc/...
 	# 3. fn() for each desired syntax, add `include` to .nanorc file if not present
-	CONFIGFILE=$VIM_HOME/vimrc
-	{ CONFIG=$(cat) ; } <<-'EOF'
-		" BEGIN_SHELLRC
-		include "/usr/share/nano/nanorc.nanorc"
-		include "/usr/share/nano/c.nanorc"
-		include "/usr/share/nano/makefile.nanorc"
-		include "/usr/share/nano/css.nanorc"
-		include "/usr/share/nano/debian.nanorc"
-		include "/usr/share/nano/gentoo.nanorc"
-		include "/usr/share/nano/html.nanorc"
-		include "/usr/share/nano/php.nanorc"
-		include "/usr/share/nano/tcl.nanorc"
-		include "/usr/share/nano/tex.nanorc"
-		include "/usr/share/nano/mutt.nanorc"
-		include "/usr/share/nano/patch.nanorc"
-		include "/usr/share/nano/man.nanorc"
-		include "/usr/share/nano/groff.nanorc"
-		include "/usr/share/nano/perl.nanorc"
-		include "/usr/share/nano/python.nanorc"
-		include "/usr/share/nano/ruby.nanorc"
-		include "/usr/share/nano/java.nanorc"
-		include "/usr/share/nano/fortran.nanorc"
-		include "/usr/share/nano/objc.nanorc"
-		include "/usr/share/nano/ocaml.nanorc"
-		include "/usr/share/nano/awk.nanorc"
-		include "/usr/share/nano/asm.nanorc"
-		include "/usr/share/nano/sh.nanorc"
-		include "/usr/share/nano/xml.nanorc"
+	if [ ! -d "$(brew --prefix)/share/nanorc" ] && command -v brew > /dev/null; then
+		echo "brew install nano nanorc"
+	else
+		BREW_NANO="$(brew --prefix)/share/nanorc"
+	fi
+	CONFIGFILE=~/.nanorc
+	{ CONFIG=$(cat) ; } <<-EOF
+		# BEGIN_SHELLRC
+
+		set atblanks        # wrap line at blanks.
+		set cutfromcursor   # CTRL+K cuts from cursor position to end of line.
+		set nohelp          # Disable the help information (CTRL+G to view the help screen).
+		set softwrap        # Enable softwrap of lines.
+		# set suspend         # Enables CTRL+Z to suspend nano.
+		set tabsize 4       # Sets tab-to-spaces size to 4.
+		set tabstospaces    # Converts TAB key press to spaces.
+		set speller "aspell -x -c"         # Sets what spelling utility to use.
+		set constantshow    # Displays useful information e.g. line number and position in the bottom bar.
+		set linenumbers     # Lines are numbered.
+		set casesensitive   # Case insensitive search.
+		set historylog      # Save the last 100 history searches for later use.
+		set positionlog     # Saves the cursor position between editing sessions.
+		set zap             # Allows you to highlight text (CTRL+SHIFT+ARROW) and delete it with backspace.
+		set autoindent      # A new line will have the same number of leading spaces as the previous one.
+		set indicator       # Displays a scroll bar on the right that shows the position and size of the current view port.
+		set minibar         # Displays file name and other information in the bottom bar. Removes top bar.
+
+		# Enables the syntax highlighting.
+		# include "/usr/share/nano/*.nanorc"
+		# include "/usr/share/nano-syntax-highlighting/*.nanorc"
+		include "$BREW_NANO/*.nanorc"
+		# include "~/.nano/nanorc/*.nanorc"
+
+		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE
-	unset -f includes
+	unset CONFIG CONFIGFILE BREW_NANO
 }
 
 configure_vim() {
@@ -1038,6 +1043,7 @@ main() {
 		configure_readline
 		configure_zshell_line_editor
 		configure_vim
+		configure_nano
 		configure_npm
 		load_bash_completion
 		load_zsh_completion
