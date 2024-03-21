@@ -158,6 +158,7 @@ setup_sh() {
 		[ -f ~/.shellrc ] && . ~/.shellrc
 		# END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
@@ -203,6 +204,7 @@ setup_bash() {
 		[ -f ~/.shellrc ] && . ~/.shellrc
 		# END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	CONFIGFILE=$HOME/.bashrc
@@ -213,6 +215,7 @@ setup_bash() {
 		[ -f ~/.shellrc ] && . ~/.shellrc
 		# END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
@@ -246,6 +249,7 @@ setup_zsh() {
 		[ -f ~/.shellrc ] && . ~/.shellrc
 		# END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
@@ -489,6 +493,7 @@ configure_nano() {
 		include "/usr/share/nano/sh.nanorc"
 		include "/usr/share/nano/xml.nanorc"
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
@@ -613,6 +618,7 @@ configure_vim() {
 		
 		" END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE VIM_HOME
@@ -676,6 +682,7 @@ configure_readline() {
 		set completion-map-case on
 		# END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	if is_bash; then
@@ -701,6 +708,7 @@ configure_npm() {
 		long=true
 		; END_SHELLRC
 		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
