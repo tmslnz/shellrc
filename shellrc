@@ -1015,7 +1015,7 @@ main() {
 		EOF
 	while IFS= read -r line || [ -n "$line" ]; do
 		"$line"
-	done < <(printf '%s' "$FUNCTIONS")
+	done < <(printf '%s' "$FUNCTIONS_1")
 	while IFS= read -r line || [ -n "$line" ]; do
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_1")
