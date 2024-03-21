@@ -444,8 +444,8 @@ make_aliases() {
 }
 
 configure_nano() {
-	F=$(mktemp)
 	command -v nano > /dev/null || return 1
+	return 0
 	maybe_echo "configure_nano()"
 	# shellcheck disable=SC2317
 	includes() {
@@ -460,7 +460,9 @@ configure_nano() {
 	#    - /opt/homebrew/share/nanorc/...
 	#    - ~/.nano/nanorc/...
 	# 3. fn() for each desired syntax, add `include` to .nanorc file if not present
-	tee "$F" <<-'EOF' >/dev/null
+	CONFIGFILE=$VIM_HOME/vimrc
+	{ CONFIG=$(cat) ; } <<-'EOF'
+		" BEGIN_SHELLRC
 		include "/usr/share/nano/nanorc.nanorc"
 		include "/usr/share/nano/c.nanorc"
 		include "/usr/share/nano/makefile.nanorc"
@@ -487,7 +489,9 @@ configure_nano() {
 		include "/usr/share/nano/sh.nanorc"
 		include "/usr/share/nano/xml.nanorc"
 		EOF
-	unset F
+	_append_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
 	unset -f includes
 }
 
@@ -498,10 +502,13 @@ configure_vim() {
 	# [ -f "$VIM_HOME/vimrc" ] || touch "$VIM_HOME/vimrc"
 	# export VIM="$VIM_HOME"
 	# VIMINIT="set viminfo+=n$VIM_HOME/viminfo|:set runtimepath^=$VIM_HOME/runtime|:source $VIM_HOME/vimrc"
+	## set runtimepath=~/.config/vim/vimfiles,~/.config/vim,~/.config/vim/vimfiles/after,~/.vim/after
 	# export VIMINIT
 
-	F=$(mktemp)
-	tee "$F" <<-'EOF' >/dev/null
+	CONFIGFILE=$VIM_HOME/vimrc
+	{ CONFIG=$(cat) ; } <<-'EOF'
+		" BEGIN_SHELLRC
+		
 		" https://gist.github.com/simonista/8703722
 		" Don't try to be vi compatible
 		set nocompatible
@@ -603,8 +610,12 @@ configure_vim() {
 		" put https://raw.github.com/altercation/vim-colors-solarized/master/colors/solarized.vim
 		" in ~/.vim/colors/ and uncomment:
 		" colorscheme solarized
+		
+		" END_SHELLRC
 		EOF
-	unset VIM_HOME F
+	_append_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE VIM_HOME
 }
 
 configure_readline() {
