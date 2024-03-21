@@ -82,6 +82,7 @@ _prepend_section_in_file() {
 	maybe_echo "_prepend_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
+	[ -f "$_FILE" ] || return 1
 	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
 	if [ -z "$_SECTION_READ" ]; then
 		printf '%s\n%s\n' "$_SECTION" "$(cat "$_FILE")" > "$_FILE"
@@ -94,6 +95,7 @@ _append_section_in_file() {
 	maybe_echo "_append_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
+	[ -f "$_FILE" ] || return 1
 	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
 	if [ -z "$_SECTION_READ" ]; then
 		printf '%s\n%s\n' "$(cat "$_FILE")" "$_SECTION" > "$_FILE"
@@ -106,6 +108,7 @@ _update_section_in_file() {
 	maybe_echo "_update_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
+	[ -f "$_FILE" ] || return 1
 	# Read current from disk
 	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
 	# Abort if: no SHELLRC section is found
