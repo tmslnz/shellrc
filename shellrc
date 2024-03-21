@@ -7,8 +7,6 @@
 #  ~/.zshrc
 #  ~/.profile
 
-SHELLRC_DEBUG=true
-
 # Prevent sourcing more than once per session
 if [ "$SHELLRC_SOURCED" ]; then return 0; fi
 SHELLRC_SOURCED=true
@@ -1016,10 +1014,12 @@ main() {
 		set_prompt_command
 		EOF
 	# Run main functions
+	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
 		"$line"
 	done < <(printf '%s' "$FUNCTIONS_1")
 	# Unset main functions
+	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_1")
@@ -1035,7 +1035,7 @@ main() {
 		is_zsh
 		EOF
 	# Unset utility functions
-	while IFS= read -r line || [[ -n $line ]]; do
+	# shellcheck disable=SC3001
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_2")
 	unset FUNCTIONS_2
