@@ -838,6 +838,7 @@ make_utility_functions() {
 	}
 }
 
+# shellcheck disable=SC3010,SC3028,SC3030,SC3044,SC3054
 load_bash_completion() {
 	is_bash || return 0
 	complete -cf sudo
