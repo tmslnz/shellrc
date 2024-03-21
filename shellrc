@@ -449,12 +449,7 @@ make_aliases() {
 
 configure_nano() {
 	command -v nano > /dev/null || return 1
-	return 0
 	maybe_echo "configure_nano()"
-	# shellcheck disable=SC2317
-	includes() {
-		grep -xqs '.*include.*'"$1"'.*' "$2"
-	}
 	## TODO
 	# on Linux, /etc/nanorc
 	# 1. Do we have nano?
