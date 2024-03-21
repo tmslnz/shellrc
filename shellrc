@@ -13,7 +13,7 @@ SHELLRC_SOURCED=true
 
 maybe_echo() {
 	[ -z "$SHELLRC_DEBUG" ] && return 0
-	[ $SHELLRC_DEBUG = true ] && echo "$1"
+	[ "$SHELLRC_DEBUG" = true ] && echo "$1"
 }
 
 maybe_echo "$HOME/.shellrc"
