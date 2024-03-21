@@ -20,7 +20,6 @@ maybe_echo() {
 
 maybe_echo "$HOME/.shellrc"
 
-# shellcheck disable=SC2317
 is_darwin() {
 	case $(uname) in
 		"Darwin"*) return 0;;
@@ -28,7 +27,6 @@ is_darwin() {
 	esac
 }
 
-# shellcheck disable=SC2317
 is_linux() {
 	case $(uname) in
 		"Linux"*) return 0;;
@@ -36,13 +34,11 @@ is_linux() {
 	esac
 }
 
-# shellcheck disable=SC2317
 is_bash() {
 	[ -z "$BASH_VERSION" ] && return 1
 	return 0
 }
 
-# shellcheck disable=SC2317
 is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1
 	return 0
@@ -77,7 +73,6 @@ _a_newer_than_b() {
 	[ "$A" -gt "$B" ]
 }
 
-# shellcheck disable=SC2317
 _prepend_section_in_file() {
 	maybe_echo "_prepend_section_in_file()"
 	_SECTION="$1"
@@ -90,7 +85,6 @@ _prepend_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
-# shellcheck disable=SC2317
 _append_section_in_file() {
 	maybe_echo "_append_section_in_file()"
 	_SECTION="$1"
@@ -103,7 +97,6 @@ _append_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
-# shellcheck disable=SC2317
 _update_section_in_file() {
 	maybe_echo "_update_section_in_file()"
 	_SECTION="$1"
@@ -361,7 +354,6 @@ set_xdg_directories() {
 	# XDG_CONFIG_DIRS
 }
 
-# shellcheck disable=SC2317
 is_smart_terminal() {
 	maybe_echo "is_smart_terminal()"
 	case "$TERM" in
@@ -702,7 +694,6 @@ configure_zshell_line_editor() {
 	bindkey "\eOB" history-search-forward
 }
 
-# shellcheck disable=SC2317
 load_python_autovenv() {
 	maybe_echo "load_python_autovenv()"
 	# From:
@@ -823,7 +814,6 @@ set_path() {
 	unset -f maybe_prepend maybe_append
 }
 
-# shellcheck disable=SC2317
 make_utility_functions() {
 	wordpress_delete_thumbnails() {
 		if [[ "$(pwd)" == *"/uploads"* ]]; then
