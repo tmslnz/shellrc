@@ -20,6 +20,7 @@ maybe_echo() {
 
 maybe_echo "$HOME/.shellrc"
 
+# shellcheck disable=SC2317
 is_darwin() {
 	case $(uname) in
 		"Darwin"*) return 0;;
@@ -27,6 +28,7 @@ is_darwin() {
 	esac
 }
 
+# shellcheck disable=SC2317
 is_linux() {
 	case $(uname) in
 		"Linux"*) return 0;;
@@ -34,11 +36,13 @@ is_linux() {
 	esac
 }
 
+# shellcheck disable=SC2317
 is_bash() {
 	[ -z "$BASH_VERSION" ] && return 1
 	return 0
 }
 
+# shellcheck disable=SC2317
 is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1
 	return 0
@@ -73,6 +77,7 @@ _a_newer_than_b() {
 	[ "$A" -gt "$B" ]
 }
 
+# shellcheck disable=SC2317
 _prepend_section_in_file() {
 	maybe_echo "_prepend_section_in_file()"
 	_SECTION="$1"
@@ -84,6 +89,7 @@ _prepend_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
+# shellcheck disable=SC2317
 _append_section_in_file() {
 	maybe_echo "_append_section_in_file()"
 	_SECTION="$1"
@@ -95,6 +101,7 @@ _append_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
+# shellcheck disable=SC2317
 _update_section_in_file() {
 	maybe_echo "_update_section_in_file()"
 	_SECTION="$1"
@@ -155,16 +162,17 @@ update_shellrc() {
 		echo "... writing $SHELLRC_FILE"
 		_rename_with_timestamp "$SHELLRC_FILE"
 		cat "$F" > "$SHELLRC_FILE"
-		source "$SHELLRC_FILE"
+		# shellcheck disable=SC1090
+		. "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
 	fi
 	unset F SHELLRC_FILE
 }
 
-install_sh() {
+setup_sh() {
 	is_bash || is_zsh && return 0
-	maybe_echo "install_sh()"
+	maybe_echo "setup_sh()"
 	FILES="$HOME/.profile"
 	for F in ${FILES}; do
 		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
@@ -255,6 +263,7 @@ set_shell_options() {
 	[ -f "$HOME/.hushlogin" ] || touch "$HOME/.hushlogin"
 }
 
+# shellcheck disable=SC3044
 set_bash_options() {
 	is_bash || return 0
 	maybe_echo "set_bash_options()"
@@ -303,6 +312,7 @@ set_bash_options() {
 	# export dropbox="$HOME/Dropbox"
 }
 
+# shellcheck disable=SC2034
 set_zsh_options() {
 	is_zsh || return 0
 	maybe_echo "set_zsh_options()"
@@ -348,7 +358,9 @@ set_xdg_directories() {
 	# XDG_CONFIG_DIRS
 }
 
+# shellcheck disable=SC2317
 is_smart_terminal() {
+	maybe_echo "is_smart_terminal()"
 	case "$TERM" in
 		"dumb")
 			return 1;;
@@ -374,6 +386,7 @@ set_zsh_prompt_string() {
 		PS1="> "
 		return 0
 	fi
+	# shellcheck disable=SC2034
 	PROMPT=$'%B%n%{\e[2m%}@%m%{\e[0;2m%}:%{\e[0m%}%~%{\e[2m%} \xe2\x97\x8f %{\e[0m%}'
 }
 
@@ -387,6 +400,7 @@ set_ls_colors() {
 	else # OS X `ls`
 		LS_COLOR_FLAG="-G"
 	fi
+	# shellcheck disable=SC2139
 	alias ls="command ls ${LS_COLOR_FLAG}"
 	# export LS_COLORS='no=00:fi=00:di=01;34:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
 	unset LS_COLOR_FLAG
@@ -405,8 +419,9 @@ make_aliases() {
 	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
 	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
 	if ! is_available pgrep; then
+		# shellcheck disable=SC2317
 		psgrep () {
-			ps aux | egrep -v grep | egrep $1 | awk '{print $2}'
+			ps aux | egrep -v grep | egrep "$1" | awk '{print $2}'
 		}
 	fi
 	is_darwin && alias ip="ipconfig getifaddr en0"
@@ -426,8 +441,9 @@ configure_nano() {
 	F=$(mktemp)
 	command -v nano > /dev/null || return 1
 	maybe_echo "configure_nano()"
+	# shellcheck disable=SC2317
 	includes() {
-		grep -xqs '.*include.*'$1'.*' $2
+		grep -xqs '.*include.*'"$1"'.*' "$2"
 	}
 	## TODO
 	# on Linux, /etc/nanorc
@@ -682,6 +698,7 @@ configure_zshell_line_editor() {
 	bindkey "\eOB" history-search-forward
 }
 
+# shellcheck disable=SC2317
 load_python_autovenv() {
 	maybe_echo "load_python_autovenv()"
 	# From:
@@ -712,30 +729,30 @@ load_python_autovenv() {
 		done
 	}
 	venv_curr() {
-		if [ -n "$VIRTUAL_ENV" -a "$(type -t deactivate)" = 'function' ]; then
-			echo $VIRTUAL_ENV
+		if [ -n "$VIRTUAL_ENV" ] && [ "$(type -t deactivate)" = 'function' ]; then
+			echo "$VIRTUAL_ENV"
 		fi
 	}
 	venv_auto() {
 		venv_new="$(venv_find)"
 		venv_old="$(venv_curr)"
-		if [ -z "$venv_new" -a -n "$venv_old" ]; then
-			echo "Deactivating $(_venv_name $venv_old)..."
+		if [ -z "$venv_new" ] && [ -n "$venv_old" ]; then
+			echo "Deactivating $(_venv_name "$venv_old")..."
 			deactivate
-		elif [ -n "$venv_new" -a "$venv_new" != "$venv_old" ]; then
-			echo "Activating $(_venv_name $venv_new)..."
-			source "$venv_new"/bin/activate
+		elif [ -n "$venv_new" ] && [ "$venv_new" != "$venv_old" ]; then
+			echo "Activating $(_venv_name "$venv_new")..."
+			. "$venv_new"/bin/activate
 		fi
 	}
 	_venv_ps1() {
 		if [[ -z "$VIRTUAL_ENV" ]]; then
 			printf ""
 		else
-			printf "$(basename $(dirname $(venv_curr)))"
+			printf "%s" "$(basename "$(dirname "$(venv_curr)")")"
 		fi
 	}
 	_venv_name() {
-		printf $(basename $(dirname $1))
+		printf "%s" "$(basename "$(dirname "$1")")"
 	}
 }
 
@@ -802,6 +819,7 @@ set_path() {
 	unset -f maybe_prepend maybe_append
 }
 
+# shellcheck disable=SC2317
 make_utility_functions() {
 	wordpress_delete_thumbnails() {
 		if [[ "$(pwd)" == *"/uploads"* ]]; then
@@ -835,7 +853,8 @@ load_bash_completion() {
 		[ -f "$P" ] && maybe_echo "... $P"
 		if [[ $PS1 && -f $P ]]; then
 			unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
-			source "$P"
+			# shellcheck disable=SC1090
+			. "$P"
 			break
 		fi
 	done
