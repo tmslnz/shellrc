@@ -815,6 +815,7 @@ set_path() {
 }
 
 make_utility_functions() {
+	maybe_echo "make_utility_functions()"
 	wordpress_delete_thumbnails() {
 		if [[ "$(pwd)" == *"/uploads"* ]]; then
 			find . -regextype egrep -regex ".+-[0-9]+?x[0-9]+\.(jpe?g|png)$" -type f -print0 | xargs -0 rm
@@ -979,6 +980,7 @@ set_locale() {
 }
 
 set_prompt_command() {
+	maybe_echo "set_prompt_command()"
 	PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
 }
 
