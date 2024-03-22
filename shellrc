@@ -445,12 +445,19 @@ configure_nano() {
 	#    - /usr/share/nano-syntax-highlighting/...
 	#    - /opt/homebrew/share/nanorc/...
 	#    - ~/.nano/nanorc/...
-	# 3. fn() for each desired syntax, add `include` to .nanorc file if not present
-	if command -v brew > /dev/null && [ ! -d "$(brew --prefix)/share/nanorc" ]; then
-		echo "brew install nano nanorc"
-	else
-		BREW_NANO="$(brew --prefix)/share/nanorc"
+	if command -v brew > /dev/null && [ -d "$(brew --prefix)/share/nanorc" ]; then
+		NANORCS="$(brew --prefix)/share/nanorc"
+	elif command -v brew > /dev/null; then
+		echo "Run:"
+		echo "$ brew install nano nanorc"
+	elif [ -d /usr/share/nano ]; then
+		NANORCS="/usr/share/nano"
+	elif [ -d ~/.nano/nanorc ]; then
+		NANORCS=~/.nano/nanorc
+	elif [ -d /usr/share/nano-syntax-highlighting ]; then
+		NANORCS="/usr/share/nano-syntax-highlighting"
 	fi
+
 	CONFIGFILE=~/.nanorc
 	{ CONFIG=$(cat) ; } <<-EOF
 		# BEGIN_SHELLRC
@@ -474,17 +481,14 @@ configure_nano() {
 		set minibar         # Displays file name and other information in the bottom bar. Removes top bar.
 
 		# Enables the syntax highlighting.
-		# include "/usr/share/nano/*.nanorc"
-		# include "/usr/share/nano-syntax-highlighting/*.nanorc"
-		include "$BREW_NANO/*.nanorc"
-		# include "~/.nano/nanorc/*.nanorc"
+		include "$NANORCS/*.nanorc"
 
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE BREW_NANO
+	unset CONFIG CONFIGFILE NANORCS
 }
 
 configure_vim() {
