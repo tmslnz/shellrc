@@ -437,14 +437,6 @@ make_aliases() {
 configure_nano() {
 	command -v nano > /dev/null || return 1
 	maybe_echo "configure_nano()"
-	## TODO
-	# on Linux, /etc/nanorc
-	# 1. Do we have nano?
-	# 2. What path are nano syntax files?
-	#    - /usr/share/nano/...
-	#    - /usr/share/nano-syntax-highlighting/...
-	#    - /opt/homebrew/share/nanorc/...
-	#    - ~/.nano/nanorc/...
 	if command -v brew > /dev/null && [ -d "$(brew --prefix)/share/nanorc" ]; then
 		NANORCS="$(brew --prefix)/share/nanorc"
 	elif command -v brew > /dev/null; then
@@ -456,6 +448,8 @@ configure_nano() {
 		NANORCS=~/.nano/nanorc
 	elif [ -d /usr/share/nano-syntax-highlighting ]; then
 		NANORCS="/usr/share/nano-syntax-highlighting"
+	elif [ -d /etc/nanorc ]; then
+		NANORCS="/etc/nanorc"
 	fi
 
 	CONFIGFILE=~/.nanorc
