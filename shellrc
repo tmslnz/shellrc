@@ -415,9 +415,9 @@ make_aliases() {
 	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
 	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
 	if ! is_available pgrep; then
-		# shellcheck disable=SC2317
+		# shellcheck disable=SC2317,SC2009
 		psgrep () {
-			ps aux | egrep -v grep | egrep "$1" | awk '{print $2}'
+			ps aux | grep -Ev grep | grep "$1" | awk '{print $2}'
 		}
 	fi
 	is_available ip && alias localip="ip route get 1 | awk '{print \$NF;exit}'"
