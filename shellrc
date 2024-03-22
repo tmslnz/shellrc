@@ -446,7 +446,7 @@ configure_nano() {
 	#    - /opt/homebrew/share/nanorc/...
 	#    - ~/.nano/nanorc/...
 	# 3. fn() for each desired syntax, add `include` to .nanorc file if not present
-	if [ ! -d "$(brew --prefix)/share/nanorc" ] && command -v brew > /dev/null; then
+	if command -v brew > /dev/null && [ ! -d "$(brew --prefix)/share/nanorc" ]; then
 		echo "brew install nano nanorc"
 	else
 		BREW_NANO="$(brew --prefix)/share/nanorc"
