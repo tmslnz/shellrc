@@ -43,13 +43,6 @@ _rename_with_timestamp() {
 	unset TS
 }
 
-_a_newer_than_b() {
-	maybe_echo "_a_newer_than_b()"
-	A=$(date -r "$1" "+%s")
-	B=$(date -r "$2" "+%s")
-	[ "$A" -gt "$B" ]
-}
-
 _prepend_section_in_file() {
 	maybe_echo "_prepend_section_in_file()"
 	_SECTION="$1"
@@ -90,7 +83,7 @@ _update_section_in_file() {
 		maybe_echo "... SHELLRC section in $_FILE is unchanged."
 		return 0
 	# Abort if: destination is newer than .shellrc
-	elif _a_newer_than_b "$_FILE" "$(_get_shellrc_file)"; then
+	elif [ "$(date -r "$_FILE" "+%s")" -gt "$(date -r "$(_get_shellrc_file)" "+%s")" ]; then
 		maybe_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
 		return 0
 	fi
