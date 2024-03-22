@@ -21,17 +21,11 @@ maybe_echo() {
 maybe_echo "$HOME/.shellrc"
 
 is_darwin() {
-	case $(uname) in
-		"Darwin"*) return 0;;
-		*) return 1;;
-	esac
+	uname | awk '!/[Dd]arwin/{exit 1}'
 }
 
 is_linux() {
-	case $(uname) in
-		"Linux"*) return 0;;
-		*) return 1;;
-	esac
+	uname | awk '!/[Ll]inux/{exit 1}'
 }
 
 is_bash() {
