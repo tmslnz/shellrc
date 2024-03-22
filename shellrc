@@ -1099,6 +1099,7 @@ set_prompt_command() {
 	PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
 }
 
+# shellcheck disable=SC3001
 main() {
 	maybe_echo "main()"
 	{ FUNCTIONS_1=$(cat) ; } <<-'EOF'
@@ -1133,12 +1134,10 @@ main() {
 		set_prompt_command
 		EOF
 	# Run main functions
-	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
 		$line
 	done < <(printf '%s' "$FUNCTIONS_1")
 	# Unset main functions
-	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_1")
@@ -1154,7 +1153,6 @@ main() {
 		is_zsh
 		EOF
 	# Unset utility functions
-	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
 		unset -f "$line"
 	done < <(printf '%s' "$FUNCTIONS_2")
