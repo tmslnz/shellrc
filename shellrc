@@ -701,6 +701,110 @@ configure_npm() {
 	unset CONFIG CONFIGFILE
 }
 
+configure_git() {
+	maybe_echo "configure_git()"
+	command -v git > /dev/null || return 1
+	CONFIGFILE=~/.gitconfig
+	{ CONFIG=$(cat) ; } <<-EOF
+		; BEGIN_SHELLRC
+		
+		[core]
+		
+		excludesfile = ~/.gitignore
+		attributesfile = ~/.gitattributes
+		# Treat spaces before tabs, lines that are indented with 8 or more spaces, and all kinds of trailing whitespace as an error
+		whitespace = space-before-tab,trailing-space
+		editor = nano
+		quotepath = false
+		# Autosave & Versions on OSX screw around with rebase workflow
+		# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/
+		trustctime = false
+		autocrlf = false
+		# safecrlf = true
+
+		[color]
+
+		# Use colors in Git commands that are capable of colored output when outputting to the terminal
+		ui = auto
+
+		[merge]
+		
+		# Include summaries of merged commits in newly created merge commit messages
+		log = true
+
+		[push]
+		
+		default = simple
+
+		[credential]
+		
+		helper = cache --timeout=3600
+
+		[alias]
+		
+		# View the SHA, description, and history graph of the latest 20 commits
+		l = log --pretty=oneline -n 20 --graph
+		# View the current working tree status using the short format
+		s = status -s
+		# Show the diff between the latest commit and the current state
+		d = !"git diff-index --quiet HEAD -- || clear; git diff --patch-with-stat"
+		# git di \$number shows the diff between the state \$number revisions ago and the current state
+		di = !"d() { git diff --patch-with-stat HEAD~$1; }; git diff-index --quiet HEAD -- || clear; d"
+		# Pull in remote changes for the current repository and all its submodules
+		pullall = !"git pull; git submodule foreach git pull origin master"
+		cloneall = clone --recursive
+		# Commit all changes
+		ca = !git add -A && git commit -av
+		# Switch to a branch, creating it if necessary
+		go = checkout -B
+		# Show verbose output about tags, branches or remotes
+		tags = tag -l
+		branches = branch -a
+		remotes = remote -v
+		# Credit an author on the latest commit
+		credit = "!f() { git commit --amend --author \"\$1 <\$2>\" -C HEAD; }; f"
+		# Interactive rebase with the given number of latest commits
+		rebasen = "!r() { git rebase -i HEAD~\$1; }; r"
+		undopush = push -f origin HEAD^:master
+
+		; END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	CONFIGFILE=~/.gitignore
+	{ CONFIG=$(cat) ; } <<-EOF
+		# BEGIN_SHELLRC
+
+		# OS generated files #
+		######################
+		.DS_Store
+		.DS_Store?
+		._*
+		.Spotlight-V100
+		.Trashes
+		ehthumbs.db
+		Thumbs.db
+		
+		# END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	CONFIGFILE=~/.gitattributes
+	{ CONFIG=$(cat) ; } <<-EOF
+		# BEGIN_SHELLRC
+
+		Package Control.sublime-settings -text
+		
+		# END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
+}
+
 configure_zshell_line_editor() {
 	is_zsh || return 0
 	maybe_echo "configure_zshell_line_editor()"
@@ -1026,6 +1130,7 @@ main() {
 		configure_vim
 		configure_nano
 		configure_npm
+		configure_git
 		load_bash_completion
 		load_zsh_completion
 		load_python_completions
@@ -1036,7 +1141,7 @@ main() {
 	# Run main functions
 	# shellcheck disable=SC3001
 	while IFS= read -r line || [ -n "$line" ]; do
-		"$line"
+		$line
 	done < <(printf '%s' "$FUNCTIONS_1")
 	# Unset main functions
 	# shellcheck disable=SC3001
