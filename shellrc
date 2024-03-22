@@ -89,7 +89,7 @@ _update_section_in_file() {
 	elif [ "$_SECTION_READ" = "$_SECTION" ]; then
 		maybe_echo "... SHELLRC section in $_FILE is unchanged."
 		return 0
-	# Abort if: ssh config is newer than .shellrc
+	# Abort if: destination is newer than .shellrc
 	elif _a_newer_than_b "$_FILE" "$(_get_shellrc_file)"; then
 		maybe_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
 		return 0
