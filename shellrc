@@ -411,7 +411,7 @@ make_aliases() {
 		alias sudo='sudo ' # Enable sudo <aslias>, only if bash-completion is not loaded.
 	fi
 	alias lsd="ls -la \${LS_COLOR_FLAG} | grep '^d'" # List only directories
-	is_available nano && alias crontab="env EDITOR=nano crontab" # Reset EDITOR for crontab
+	is_available nano && alias crontab="EDITOR=nano crontab" # Reset EDITOR for crontab
 	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
 	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
 	if ! is_available pgrep; then
@@ -875,10 +875,6 @@ set_default_editor() {
 	if command -v nano > /dev/null; then
 		export VISUAL="nano"
 		export EDITOR="nano"
-	fi
-	if command -v subl > /dev/null; then
-		export VISUAL="subl --wait --new-window"
-		export EDITOR="subl --wait --new-window"
 	fi
 }
 
