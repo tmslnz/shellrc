@@ -149,21 +149,6 @@ setup_sh() {
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
-
-
-	FILES="$HOME/.profile"
-	for F in ${FILES}; do
-		if [ -f "$F" ] && grep -Fq '[ -f ~/.shellrc ]' "$F"; then
-			continue
-		else
-			[ -f "$F" ] && _rename_with_timestamp "$F"
-			tee "$F" <<-EOF >/dev/null
-				#!/usr/bin/env sh
-				[ -f ~/.shellrc ] && . ~/.shellrc
-				EOF
-		fi
-	done
-	unset FILES F
 }
 
 setup_bash() {
