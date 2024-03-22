@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# shellcheck disable=SC1090
 # Cross-shell rc file
 # sourced by
 #  ~/.bash_profile
@@ -128,7 +129,6 @@ update_shellrc() {
 		echo "... writing $SHELLRC_FILE"
 		_rename_with_timestamp "$SHELLRC_FILE"
 		cat "$F" > "$SHELLRC_FILE"
-		# shellcheck disable=SC1090
 		. "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
@@ -866,7 +866,6 @@ load_bash_completion() {
 		[ -f "$P" ] && maybe_echo "... $P"
 		if [[ $PS1 && -f $P ]]; then
 			unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
-			# shellcheck disable=SC1090
 			. "$P"
 			break
 		fi
