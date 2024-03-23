@@ -804,15 +804,13 @@ configure_git() {
 configure_wget() {
 	command -v wget > /dev/null || return 1
 	if [ -z "$XDG_CONFIG_HOME" ]; then
-		CONFIGDIR=~
-		CONFIGFILE=$CONFIGDIR/.wgetrc
-		HSTSFILE=$CONFIGDIR/.wget-hsts
+		CONFIGFILE=~/.wgetrc
+		HSTSFILE=~/.wget-hsts
 	else
-		CONFIGDIR=$XDG_CONFIG_HOME/wget
-		CONFIGFILE=$CONFIGDIR/wgetrc
-		HSTSFILE=$CONFIGDIR/wget-hsts
+		mkdir -p "$XDG_CONFIG_HOME/wget"
+		CONFIGFILE=$XDG_CONFIG_HOME/wget/wgetrc
+		HSTSFILE=$XDG_CONFIG_HOME/wget/wget-hsts
 	fi
-	mkdir -p "$CONFIGDIR"
 	maybe_local_encoding() {
 		if wget --help | grep -q "local-encoding"; then
 		    printf "local_encoding = UTF-8"
@@ -844,7 +842,7 @@ configure_wget() {
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE CONFIGDIR HSTSFILE
+	unset CONFIG CONFIGFILE HSTSFILE
 	unset -f maybe_local_encoding
 }
 
