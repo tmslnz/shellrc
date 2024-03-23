@@ -393,7 +393,7 @@ make_aliases() {
 		command -v "$1" > /dev/null
 	}
 	if ! type _get_comp_words_by_ref > /dev/null 2>&1; then
-		alias sudo='sudo ' # Enable sudo <aslias>, only if bash-completion is not loaded.
+		alias sudo='sudo ' # Enable sudo <alias>, only if bash-completion is not loaded.
 	fi
 	alias lsd="ls -la \${LS_COLOR_FLAG} | grep '^d'" # List only directories
 	is_available nano && alias crontab="EDITOR=nano crontab" # Reset EDITOR for crontab
@@ -443,7 +443,7 @@ configure_nano() {
 
 		set atblanks        # wrap line at blanks.
 		set cutfromcursor   # CTRL+K cuts from cursor position to end of line.
-		set nohelp          # Disable the help information (CTRL+G to view the help screen).
+		# set nohelp          # Disable the help information (CTRL+G to view the help screen).
 		set softwrap        # Enable softwrap of lines.
 		set tabsize 4       # Sets tab-to-spaces size to 4.
 		set tabstospaces    # Converts TAB key press to spaces.
@@ -790,6 +790,53 @@ configure_git() {
 	unset CONFIG CONFIGFILE
 }
 
+configure_wget() {
+	command -v wget > /dev/null || return 1
+	if [ -z "$XDG_CONFIG_HOME" ]; then
+		CONFIGDIR=~
+		CONFIGFILE=$CONFIGDIR/.wgetrc
+		HSTSFILE=$CONFIGDIR/.wget-hsts
+	else
+		CONFIGDIR=$XDG_CONFIG_HOME/wget
+		CONFIGFILE=$CONFIGDIR/wgetrc
+		HSTSFILE=$CONFIGDIR/wget-hsts
+	fi
+	mkdir -p "$CONFIGDIR"
+	maybe_local_encoding() {
+		if wget --help | grep -q "local-encoding"; then
+		    printf "local_encoding = UTF-8"
+		fi
+	}
+	if wget --help | grep -q "hsts"; then
+		alias wget="wget --config '$CONFIGFILE' --hsts-file '$HSTSFILE'"
+	fi
+	{ CONFIG=$(cat) ; } <<-EOF
+		# BEGIN_SHELLRC
+
+		# https://www.gnu.org/software/wget/manual/html_node/Wgetrc-Commands.html#Wgetrc-Commands
+		timestamping = on
+		no_parent = on
+		timeout = 60
+		tries = 3
+		retry_connrefused = on
+		trust_server_names = on
+		follow_ftp = on
+		adjust_extension = on
+		# http://unix.stackexchange.com/q/34730/6040
+		$(maybe_local_encoding)
+		robots = off
+		server_response = on
+		user_agent = Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)
+
+		# END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE CONFIGDIR HSTSFILE
+	unset -f maybe_local_encoding
+}
+
 configure_zshell_line_editor() {
 	is_zsh || return 0
 	maybe_echo "configure_zshell_line_editor()"
@@ -1109,6 +1156,7 @@ main() {
 		configure_nano
 		configure_npm
 		configure_git
+		configure_wget
 		load_bash_completion
 		load_zsh_completion
 		load_python_completions
