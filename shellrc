@@ -488,7 +488,8 @@ make_aliases() {
 			ps aux | grep -Ev grep | grep "$1" | awk '{print $2}'
 		}
 	fi
-	is_available ip && alias localip="ip route get 1 | awk '{print \$NF;exit}'"
+	# shellcheck disable=SC2142
+	is_available ip && alias localip="ip route get 1 | awk '{print \$7;exit}'"
 	is_available ipconfig && alias localip="ipconfig getifaddr en0"
 	alias ips="ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'"
 	# For example, to list all directories that contain a certain file:
