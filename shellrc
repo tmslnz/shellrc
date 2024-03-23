@@ -454,6 +454,45 @@ configure_zsh() {
 	unset -f configure_zshell_line_editor load_zsh_completion
 }
 
+configure_fzf() {
+	maybe_echo "configure_fzf()"
+	command -v fzf > /dev/null || return 1
+	if is_bash; then
+		eval "$(fzf --bash)"
+	elif is_zsh; then
+		eval "$(fzf --zsh)"
+	fi
+	if command -v fd > /dev/null; then
+		export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'
+		export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+	fi
+	# TODO
+	# Conditionally set FZF_DEFAULT_COMMAND if fd is installed
+	# https://github.com/junegunn/fzf?tab=readme-ov-file#usage
+}
+
+configure_fd() {
+	maybe_echo "configure_fd()"
+	command -v fd > /dev/null || return 1
+	if is_bash; then
+		eval "$(fzf --bash)"
+	elif is_zsh; then
+		eval "$(fzf --zsh)"
+	fi
+}
+
+configure_zoxide() {
+	maybe_echo "configure_zoxide()"
+	command -v zoxide > /dev/null || return 1
+	if is_bash; then
+		eval "$(zoxide init bash)";
+	elif is_zsh; then
+		eval "$(zoxide init zsh)";
+	else
+		eval "$(zoxide init posix --hook prompt)"
+	fi
+}
+
 set_xdg_directories() {
 	maybe_echo "set_xdg_directories()"
 	if [ -z "$XDG_CONFIG_HOME" ]; then
