@@ -1245,8 +1245,26 @@ sudo_configure_dnsmasq() {
 sudo_set_macos_defaults() {
 	is_darwin || return 1
 	sudo -v
+	# OG:
+	# https://github.com/mathiasbynens/dotfiles/blob/main/.macos
+
+	# Keep-alive: update existing `sudo` time stamp until finished
+	while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
+	defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
+	defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
+	defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
+	defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true
+	defaults write NSGlobalDomain NSDocumentSaveNewDocumentsToCloud -bool false
+	defaults write NSGlobalDomain NSCloseAlwaysConfirmsChanges -bool true
+
 	defaults write com.apple.iCal "Show Week Numbers" -bool true
 	defaults write com.apple.iCal "TimeZone support enabled" -bool true
+	defaults write com.apple.screencapture location -string "${HOME}/Screenshots"
+	defaults write com.apple.screencapture type -string "png"
+	defaults write com.apple.screencapture disable-shadow -bool true
+	defaults write com.apple.dock "show-recents" -bool false
+	defaults write com.apple.CrashReporter DialogType -string "Server"
 }
 
 sudo_enable_homebrew_bash() {
