@@ -310,6 +310,14 @@ set_shell_options() {
 	[ -f "$HOME/.hushlogin" ] || touch "$HOME/.hushlogin"
 }
 
+configure_man() {
+	export MANPAGER="less -X"
+}
+
+configure_grep() {
+	export GREP_OPTIONS='--color=auto'
+}
+
 # shellcheck disable=SC2034
 configure_zsh() {
 	is_zsh || return 0
@@ -1170,6 +1178,8 @@ main() {
 		configure_bash
 		configure_zsh
 		configure_ls
+		configure_man
+		configure_grep
 		configure_ssh
 		configure_readline
 		configure_vim
