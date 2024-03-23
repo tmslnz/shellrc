@@ -445,7 +445,6 @@ configure_nano() {
 		set cutfromcursor   # CTRL+K cuts from cursor position to end of line.
 		set nohelp          # Disable the help information (CTRL+G to view the help screen).
 		set softwrap        # Enable softwrap of lines.
-		# set suspend         # Enables CTRL+Z to suspend nano.
 		set tabsize 4       # Sets tab-to-spaces size to 4.
 		set tabstospaces    # Converts TAB key press to spaces.
 		set speller "aspell -x -c"         # Sets what spelling utility to use.
@@ -458,6 +457,9 @@ configure_nano() {
 		set autoindent      # A new line will have the same number of leading spaces as the previous one.
 		set indicator       # Displays a scroll bar on the right that shows the position and size of the current view port.
 		set minibar         # Displays file name and other information in the bottom bar. Removes top bar.
+
+		# https://stackoverflow.com/a/74008963
+		bind ^Z suspend main
 
 		# Enables the syntax highlighting.
 		include "$NANORC_DIR/*.nanorc"
