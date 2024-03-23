@@ -14,12 +14,68 @@
 if [ "$SHELLRC_SOURCED" ]; then return 0; fi
 SHELLRC_SOURCED=true
 
+# shellcheck disable=SC3001
+main() {
+	maybe_echo "main()"
+	{ FUNCTIONS_1=$(cat) ; } <<-'EOF'
+		set_locale
+		set_PS1
+		set_PROMPT
+		set_xdg_directories
+		set_path
+		set_shell_options
+		set_default_editor
+		configure_darwin
+		configure_linux
+		configure_posix
+		configure_bash
+		configure_zsh
+		configure_ls
+		configure_man
+		configure_grep
+		configure_ssh
+		configure_readline
+		configure_vim
+		configure_nano
+		configure_npm
+		configure_git
+		configure_wget
+		load_python_completions
+		load_python_autovenv
+		make_aliases
+		make_utility_functions
+		set_prompt_command
+		EOF
+	# Run main functions
+	while IFS= read -r line || [ -n "$line" ]; do
+		$line
+	done < <(printf '%s' "$FUNCTIONS_1")
+	# Unset main functions
+	while IFS= read -r line || [ -n "$line" ]; do
+		unset -f "$line"
+	done < <(printf '%s' "$FUNCTIONS_1")
+	unset FUNCTIONS_1
+	{ FUNCTIONS_2=$(cat) ; } <<-'EOF'
+		prepend_section_in_file
+		append_section_in_file
+		update_section_in_file
+		is_darwin
+		is_linux
+		is_smart_terminal
+		is_bash
+		is_zsh
+		EOF
+	# Unset utility functions
+	while IFS= read -r line || [ -n "$line" ]; do
+		unset -f "$line"
+	done < <(printf '%s' "$FUNCTIONS_2")
+	unset FUNCTIONS_2
+}
+
 maybe_echo() {
 	[ -z "$SHELLRC_DEBUG" ] && return 0
 	[ "$SHELLRC_DEBUG" = true ] && echo "$1"
 }
-
-maybe_echo "$HOME/.shellrc"
 
 is_darwin() {
 	uname | awk '!/[Dd]arwin/{exit 1}'
@@ -1131,70 +1187,6 @@ set_prompt_command() {
 	PROMPT_COMMAND="_run_prompt_commands; $PROMPT_COMMAND"
 }
 
-# shellcheck disable=SC3001
-main() {
-	maybe_echo "main()"
-	{ FUNCTIONS_1=$(cat) ; } <<-'EOF'
-		set_locale
-		set_PS1
-		set_PROMPT
-		set_xdg_directories
-		set_path
-		set_shell_options
-		set_default_editor
-		configure_darwin
-		configure_linux
-		configure_posix
-		configure_bash
-		configure_zsh
-		configure_ls
-		configure_man
-		configure_grep
-		configure_ssh
-		configure_readline
-		configure_vim
-		configure_nano
-		configure_npm
-		configure_git
-		configure_wget
-		load_python_completions
-		load_python_autovenv
-		make_aliases
-		make_utility_functions
-		set_prompt_command
-		EOF
-	# Run main functions
-	while IFS= read -r line || [ -n "$line" ]; do
-		$line
-	done < <(printf '%s' "$FUNCTIONS_1")
-	# Unset main functions
-	while IFS= read -r line || [ -n "$line" ]; do
-		unset -f "$line"
-	done < <(printf '%s' "$FUNCTIONS_1")
-	unset FUNCTIONS_1
-	{ FUNCTIONS_2=$(cat) ; } <<-'EOF'
-		prepend_section_in_file
-		append_section_in_file
-		update_section_in_file
-		is_darwin
-		is_linux
-		is_smart_terminal
-		is_bash
-		is_zsh
-		EOF
-	# Unset utility functions
-	while IFS= read -r line || [ -n "$line" ]; do
-		unset -f "$line"
-	done < <(printf '%s' "$FUNCTIONS_2")
-	unset FUNCTIONS_2
-}
-
-main
-unset -f main
-
-
-# one shot
-
 sudo_cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
@@ -1309,3 +1301,6 @@ sudo_macos_substitutions() {
 		EOF
 	/usr/libexec/PlistBuddy ~/Library/Preferences/.GlobalPreferences.plist < <(printf '%s' "$CONFIG")
 }
+
+main
+unset -f main
