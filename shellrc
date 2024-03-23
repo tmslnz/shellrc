@@ -1262,7 +1262,7 @@ sudo_enable_homebrew_bash() {
 	unset BREW_PREFIX
 }
 
-disable_homebrew_bash() {
+sudo_disable_homebrew_bash() {
 	command -v brew > /dev/null || return 0
 	grep -Fxq "$(brew --prefix)/bin/bash" /etc/shells && return 0
 	maybe_echo "disable_homebrew_bash()"
