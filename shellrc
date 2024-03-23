@@ -458,6 +458,7 @@ make_aliases() {
 	#   find . -name .gitattributes | map dirname
 	alias map="xargs -n1"
 	is_available htop && alias htopme='htop --user="$(whoami)"'
+	alias ssh-list-keys='for keyfile in ~/.ssh/*.pub; do ssh-keygen -l -f "$keyfile"; done | uniq'
 	# macOS fallbacks
 	! is_available md5sum && alias md5sum="md5"
 	! is_available sha1sum && alias sha1sum="shasum"
