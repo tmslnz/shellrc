@@ -454,6 +454,9 @@ make_aliases() {
 	is_available ip && alias localip="ip route get 1 | awk '{print \$NF;exit}'"
 	is_available ipconfig && alias localip="ipconfig getifaddr en0"
 	alias ips="ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'"
+	# For example, to list all directories that contain a certain file:
+	#   find . -name .gitattributes | map dirname
+	alias map="xargs -n1"
 	# macOS fallbacks
 	! is_available md5sum && alias md5sum="md5"
 	! is_available sha1sum && alias sha1sum="shasum"
