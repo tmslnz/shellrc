@@ -666,12 +666,22 @@ configure_readline() {
 configure_npm() {
 	maybe_echo "configure_npm()"
 	command -v npm > /dev/null || return 1
-	export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npmrc"
-	CONFIGFILE="$XDG_CONFIG_HOME/npmrc"
+	if [ -z "$XDG_CONFIG_HOME" ]; then
+		CONFIGFILE=~/.npmrc
+	else
+		mkdir -p "$XDG_CONFIG_HOME/npm"
+		CONFIGFILE="$XDG_CONFIG_HOME/npm/npmrc"
+	fi
+	if [ -z "$XDG_CACHE_HOME" ]; then
+		CACHEDIR=~/.npm
+	else
+		# mkdir -p "$XDG_CACHE_HOME/npm"
+		CACHEDIR="$XDG_CACHE_HOME/npm"
+	fi
 	{ CONFIG=$(cat) ; } <<-EOF
 		; BEGIN_SHELLRC
-		userconfig="$NPM_CONFIG_USERCONFIG"
-		cache="$XDG_CACHE_HOME/npm"
+		userconfig="$CONFIGFILE"
+		cache="$CACHEDIR"
 		save-exact=true
 		prefer-offline=true
 		update-notifier=false
@@ -680,10 +690,11 @@ configure_npm() {
 		long=true
 		; END_SHELLRC
 		EOF
+	export NPM_CONFIG_USERCONFIG="$CONFIGFILE"
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE
+	unset CONFIG CONFIGFILE CACHEDIR
 }
 
 configure_git() {
