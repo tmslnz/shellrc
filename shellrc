@@ -306,7 +306,7 @@ set_zsh_options() {
 	setopt hist_verify            # show command with history expansion to user before running it
 	setopt inc_append_history     # add commands to HISTFILE in order of execution
 	# setopt share_history          # share command history data
-	setopt hash_list_all 
+	setopt hash_list_all
 	setopt correct
 	# unsetopt extended_history
 	HISTORY_IGNORE="(&|[ ]*|cd ~|~|cd ..|..|clear|history|[bf]g|reboot|shutdown|exit|date|pwd|* --help)"
@@ -483,7 +483,7 @@ configure_vim() {
 	CONFIGFILE=$VIM_HOME/vimrc
 	{ CONFIG=$(cat) ; } <<-'EOF'
 		" BEGIN_SHELLRC
-		
+
 		" https://gist.github.com/simonista/8703722
 		" Don't try to be vi compatible
 		set nocompatible
@@ -585,7 +585,7 @@ configure_vim() {
 		" put https://raw.github.com/altercation/vim-colors-solarized/master/colors/solarized.vim
 		" in ~/.vim/colors/ and uncomment:
 		" colorscheme solarized
-		
+
 		" END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
@@ -606,7 +606,7 @@ configure_readline() {
 		"\e[B": history-search-forward
 		"\eOA": history-search-backward
 		"\eOB": history-search-forward
-		
+
 		# Use Alt/Meta + Delete to delete the preceding word
 		"\e[3;3~": kill-word
 
@@ -690,9 +690,9 @@ configure_git() {
 	CONFIGFILE=~/.gitconfig
 	{ CONFIG=$(cat) ; } <<-EOF
 		; BEGIN_SHELLRC
-		
+
 		[core]
-		
+
 		excludesfile = ~/.gitignore
 		attributesfile = ~/.gitattributes
 		# Treat spaces before tabs, lines that are indented with 8 or more spaces, and all kinds of trailing whitespace as an error
@@ -711,20 +711,20 @@ configure_git() {
 		ui = auto
 
 		[merge]
-		
+
 		# Include summaries of merged commits in newly created merge commit messages
 		log = true
 
 		[push]
-		
+
 		default = simple
 
 		[credential]
-		
+
 		helper = cache --timeout=3600
 
 		[alias]
-		
+
 		# View the SHA, description, and history graph of the latest 20 commits
 		l = log --pretty=oneline -n 20 --graph
 		# View the current working tree status using the short format
@@ -768,7 +768,7 @@ configure_git() {
 		.Trashes
 		ehthumbs.db
 		Thumbs.db
-		
+
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
@@ -779,7 +779,7 @@ configure_git() {
 		# BEGIN_SHELLRC
 
 		Package Control.sublime-settings -text
-		
+
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
