@@ -1247,7 +1247,6 @@ sudo_set_macos_defaults() {
 	sudo -v
 	defaults write com.apple.iCal "Show Week Numbers" -bool true
 	defaults write com.apple.iCal "TimeZone support enabled" -bool true
-	defaults write com.apple.iCal CalendarSidebarShown -bool true
 }
 
 sudo_enable_homebrew_bash() {
@@ -1267,4 +1266,24 @@ sudo_disable_homebrew_bash() {
 	grep -Fxq "$(brew --prefix)/bin/bash" /etc/shells && return 0
 	maybe_echo "disable_homebrew_bash()"
 	sudo chsh -s /bin/bash
+}
+
+sudo_macos_substitutions() {
+	# https://apple.stackexchange.com/a/465487
+	{ CONFIG=$(cat) ; } <<-EOF
+		delete :NSUserDictionaryReplacementItems
+		add :NSUserDictionaryReplacementItems array
+		add :NSUserDictionaryReplacementItems:0:replace string moo
+		add :NSUserDictionaryReplacementItems:0:with string bar
+		add :NSUserDictionaryReplacementItems:0:on integer 1
+		add :NSUserDictionaryReplacementItems:1:replace string baz
+		add :NSUserDictionaryReplacementItems:1:with string quux
+		add :NSUserDictionaryReplacementItems:1:on integer 1
+		add :NSUserDictionaryReplacementItems:2:replace string ick
+		add :NSUserDictionaryReplacementItems:2:with string don\'t
+		add :NSUserDictionaryReplacementItems:2:on integer 1
+		print :NSUserDictionaryReplacementItems
+		___done
+		EOF
+	/usr/libexec/PlistBuddy ~/Library/Preferences/.GlobalPreferences.plist < <(printf '%s' "$CONFIG")
 }
