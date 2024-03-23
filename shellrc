@@ -478,10 +478,10 @@ configure_nano() {
 	elif command -v brew > /dev/null; then
 		echo "Run:"
 		echo "$ brew install nano nanorc"
-	elif [ -d /usr/share/nano ]; then
-		NANORC_DIR="/usr/share/nano"
 	elif [ -d ~/.nano/nanorc ]; then
 		NANORC_DIR=~/.nano/nanorc
+	elif [ -d /usr/share/nano ]; then
+		NANORC_DIR="/usr/share/nano"
 	elif [ -d /usr/share/nano-syntax-highlighting ]; then
 		NANORC_DIR="/usr/share/nano-syntax-highlighting"
 	elif [ -d /etc/nanorc ]; then
