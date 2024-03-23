@@ -88,13 +88,6 @@ is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1 || return 0
 }
 
-_rename_with_timestamp() {
-	maybe_echo "_rename_with_timestamp()"
-	TS=$(date -u +"%Y-%m-%dT%H%M%S")
-	mv "$1" "$1-$TS" > /dev/null 2>&1
-	unset TS
-}
-
 prepend_section_in_file() {
 	[ -z "$1" ] && return 1
 	maybe_echo "prepend_section_in_file()"
@@ -181,13 +174,14 @@ update_shellrc() {
 	fi
 	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
 		echo "... writing $SHELLRC_FILE"
-		_rename_with_timestamp "$SHELLRC_FILE"
+		TS=$(date -u +"%Y-%m-%dT%H%M%S")
+		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" > /dev/null 2>&1
 		cat "$F" > "$SHELLRC_FILE"
 		. "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
 	fi
-	unset F SHELLRC_FILE
+	unset F SHELLRC_FILE TS
 }
 
 configure_posix() {
