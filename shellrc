@@ -82,7 +82,7 @@ shellrc() {
 				# shift # past argument
 				# shift # past value
 				# ;;
-			-u|--update)
+			update)
 				_shellrc_update
 				shift # past argument
 				;;
