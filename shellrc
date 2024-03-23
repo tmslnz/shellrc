@@ -982,6 +982,8 @@ set_path() {
 		maybe_prepend "$BREW_PREFIX/usr/local/opt/automysqlbackup/sbin"
 		unset BREW_PREFIX
 	fi
+	# macOS system utils
+	maybe_append "/usr/libexec"
 	# Mac apps
 	maybe_prepend "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
 	maybe_prepend "/Applications/Tower.app/Contents/MacOS"
