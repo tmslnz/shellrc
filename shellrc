@@ -1290,6 +1290,7 @@ sudo_disable_homebrew_bash() {
 }
 
 sudo_macos_substitutions() {
+	is_darwin || return 1
 	# https://apple.stackexchange.com/a/465487
 	{ CONFIG=$(cat) ; } <<-EOF
 		delete :NSUserDictionaryReplacementItems
