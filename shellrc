@@ -50,6 +50,8 @@ main() {
 		prepend_section_in_file
 		append_section_in_file
 		update_section_in_file
+		prepend_path
+		append_path
 		is_darwin
 		is_linux
 		is_smart_terminal
@@ -1008,50 +1010,57 @@ set_default_editor() {
 	fi
 }
 
+append_path() {
+	case ":${PATH}:" in
+		*:"$1":*) ;;
+		*) if [ -d "$1" ]; then export PATH="$PATH":"$1"; fi ;;
+	esac
+}
+
+prepend_path() {
+	case ":${PATH}:" in
+		*:"$1":*) ;;
+		*) if [ -d "$1" ]; then export PATH="$1":"$PATH"; fi ;;
+	esac
+}
+
 set_path() {
-	maybe_append() {
-		if [ -d "$1" ]; then export PATH="$PATH":"$1"; fi
-	}
-	maybe_prepend() {
-		if [ -d "$1" ]; then export PATH="$1":"$PATH"; fi
-	}
 	# Homebrew
 	if command -v brew > /dev/null; then
 		BREW_PREFIX=$(brew --prefix)
-		maybe_prepend "$BREW_PREFIX/bin:$BREW_PREFIX/sbin"
-		maybe_prepend "$BREW_PREFIX/opt/sqlite/bin"
-		maybe_prepend "$BREW_PREFIX/opt/ffmpeg@5/bin"
-		maybe_prepend "$BREW_PREFIX/opt/php@8.1/bin"
-		maybe_prepend "$BREW_PREFIX/opt/php@8.1/sbin"
-		maybe_prepend "$BREW_PREFIX/opt/python/libexec/bin"
-		maybe_prepend "$BREW_PREFIX/opt/python@3.12/bin"
-		maybe_prepend "$BREW_PREFIX/usr/local/opt/automysqlbackup/sbin"
+		prepend_path "$BREW_PREFIX/bin:$BREW_PREFIX/sbin"
+		prepend_path "$BREW_PREFIX/opt/sqlite/bin"
+		prepend_path "$BREW_PREFIX/opt/ffmpeg@5/bin"
+		prepend_path "$BREW_PREFIX/opt/php@8.1/bin"
+		prepend_path "$BREW_PREFIX/opt/php@8.1/sbin"
+		prepend_path "$BREW_PREFIX/opt/python/libexec/bin"
+		prepend_path "$BREW_PREFIX/opt/python@3.12/bin"
+		prepend_path "$BREW_PREFIX/usr/local/opt/automysqlbackup/sbin"
 		unset BREW_PREFIX
 	fi
 	# macOS system utils
-	maybe_append "/usr/libexec"
+	append_path "/usr/libexec"
 	# Mac apps
-	maybe_prepend "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
-	maybe_prepend "/Applications/Tower.app/Contents/MacOS"
-	maybe_prepend "/Applications/VMware Fusion.app/Contents/Library"
-	maybe_prepend "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-	maybe_prepend "/Applications"
+	prepend_path "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
+	prepend_path "/Applications/Tower.app/Contents/MacOS"
+	prepend_path "/Applications/VMware Fusion.app/Contents/Library"
+	prepend_path "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+	prepend_path "/Applications"
 	# Extra
-	maybe_prepend "$HOME/.cargo/bin"
-	maybe_prepend "$HOME/bin/automysqlbackup-v3.0_rc6"
-	maybe_prepend "$HOME/.bun"
+	append_path "$HOME/.cargo/bin"
+	prepend_path "$HOME/bin/automysqlbackup-v3.0_rc6"
+	prepend_path "$HOME/.bun"
 	# pipx
-	maybe_prepend "$HOME/.local/bin"
+	prepend_path "$HOME/.local/bin"
 	# Opalstack
-	maybe_prepend "$HOME/local"
+	prepend_path "$HOME/local"
 	if [ -d "$HOME/local" ]; then
 		for D in "$HOME"/local/*/; do
 			export PATH="$D:$PATH"
-			maybe_prepend "$D/bin"
+			prepend_path "$D/bin"
 		done
 	fi
 	unset D
-	unset -f maybe_prepend maybe_append
 }
 
 # shellcheck disable=SC2317,SC3010
