@@ -457,6 +457,7 @@ make_aliases() {
 	# For example, to list all directories that contain a certain file:
 	#   find . -name .gitattributes | map dirname
 	alias map="xargs -n1"
+	is_available htop && alias htopme='htop --user="$(whoami)"'
 	# macOS fallbacks
 	! is_available md5sum && alias md5sum="md5"
 	! is_available sha1sum && alias sha1sum="shasum"
