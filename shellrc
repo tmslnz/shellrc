@@ -44,8 +44,8 @@ _rename_with_timestamp() {
 	unset TS
 }
 
-_prepend_section_in_file() {
-	maybe_echo "_prepend_section_in_file()"
+prepend_section_in_file() {
+	maybe_echo "prepend_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
 	[ -f "$_FILE" ] || return 1
@@ -56,8 +56,8 @@ _prepend_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
-_append_section_in_file() {
-	maybe_echo "_append_section_in_file()"
+append_section_in_file() {
+	maybe_echo "append_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
 	[ -f "$_FILE" ] || return 1
@@ -68,8 +68,8 @@ _append_section_in_file() {
 	unset _SECTION _FILE _SECTION_READ
 }
 
-_update_section_in_file() {
-	maybe_echo "_update_section_in_file()"
+update_section_in_file() {
+	maybe_echo "update_section_in_file()"
 	_SECTION="$1"
 	_FILE="$2"
 	[ -f "$_FILE" ] || return 1
@@ -136,9 +136,9 @@ update_shellrc() {
 	unset F SHELLRC_FILE
 }
 
-setup_sh() {
+configure_posix() {
 	is_bash || is_zsh && return 0
-	maybe_echo "setup_sh()"
+	maybe_echo "configure_posix()"
 	CONFIGFILE=$HOME/.profile
 	{ CONFIG=$(cat) ; } <<-'EOF'
 		# BEGIN_SHELLRC
@@ -146,14 +146,16 @@ setup_sh() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
 }
 
-setup_bash() {
+configure_bash() {
 	is_bash || return 0
-	maybe_echo "setup_bash()"
+	maybe_echo "configure_bash()"
+
+	# Create init files
 	if [ "$BASH_VERSINFO" -lt 4 ]; then
 		echo "You are using a very old version of Bash: $BASH_VERSION"
 		if is_darwin && command -v brew > /dev/null; then
@@ -177,8 +179,8 @@ setup_bash() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	CONFIGFILE=$HOME/.bashrc
 	{ CONFIG=$(cat) ; } <<-'EOF'
 		# BEGIN_SHELLRC
@@ -188,9 +190,87 @@ setup_bash() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
+
+	# shellcheck disable=SC3044
+	set_bash_options() {
+		maybe_echo "set_bash_options()"
+		HISTIGNORE="&:[ ]*:cd ~:~:cd ..:..:clear:history:[bf]g:reboot:shutdown:exit:date:pwd:* --help"
+		HISTCONTROL="erasedups:ignorespace"
+		HISTSIZE=32768
+		HISTFILESIZE=$HISTSIZE
+		SAVEHIST=$HISTSIZE
+		HISTFILE="${HOME}/.history"
+		# Use standard ISO 8601 timestamp
+		# %F equivalent to %Y-%m-%d
+		# %T equivalent to %H:%M:%S (24-hours format)
+		# HISTTIMEFORMAT='%F %T '
+		# Prevent file overwrite on stdout redirection
+		# Use `>|` to force redirection to an existing file
+		# set -o noclobber
+		# Update window size after every command
+		shopt -s checkwinsize
+		# Automatically trim long paths in the prompt (requires Bash 4.x)
+		PROMPT_DIRTRIM=2
+		# Turn on recursive globbing (enables ** to recurse all directories)
+		shopt -s globstar 2> /dev/null
+		# Case-insensitive globbing (used in pathname expansion)
+		shopt -s nocaseglob;
+		# Append to the history file, don't overwrite it
+		shopt -s histappend
+		# Save multi-line commands as one command
+		shopt -s cmdhist
+		# Prepend cd to directory names automatically
+		shopt -s autocd 2> /dev/null
+		# Correct spelling errors during tab-completion
+		shopt -s dirspell 2> /dev/null
+		# Correct spelling errors in arguments supplied to cd
+		shopt -s cdspell 2> /dev/null
+		# This defines where cd looks for targets
+		# Add the directories you want to have fast access to, separated by colon
+		# Ex: CDPATH=".:~:~/projects" will look for targets in the current working directory, in home and in the ~/projects folder
+		CDPATH="."
+		# This allows you to bookmark your favorite places across the file system
+		# Define a variable containing a path and you will be able to cd into it regardless of the directory you're in
+		shopt -s cdable_vars
+		# Examples:
+		# export dotfiles="$HOME/dotfiles"
+		# export projects="$HOME/projects"
+		# export documents="$HOME/Documents"
+		# export dropbox="$HOME/Dropbox"
+	}
+
+	# shellcheck disable=SC3010,SC3028,SC3030,SC3044,SC3054
+	load_bash_completion() {
+		complete -cf sudo
+		if ! [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
+			echo "... Bash version too old (${BASH_VERSION}); not loading completions"
+			return 1
+		fi
+		type _get_comp_words_by_ref > /dev/null 2>&1 && return 0
+		maybe_echo "load_bash_completion()"
+		PATHS=(
+			"$sysconfdir/profile.d/bash_completion.sh"
+			"/usr/share/bash-completion/bash_completion"
+			"/etc/bash_completion"
+			"/sw/etc/bash_completion"
+			"/usr/local/etc/bash_completion"
+		)
+		for P in "${PATHS[@]}"; do
+			[ -f "$P" ] && maybe_echo "... $P"
+			if [[ $PS1 && -f $P ]]; then
+				unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
+				. "$P"
+				break
+			fi
+		done
+		unset P PATHS
+	}
+	set_bash_options
+	load_bash_completion
 	unset CONFIG CONFIGFILE
+	unset -f set_bash_options load_bash_completion
 }
 
 enable_homebrew_bash() {
@@ -212,21 +292,6 @@ disable_homebrew_bash() {
 	sudo chsh -s /bin/bash
 }
 
-setup_zsh() {
-	is_zsh || return 0
-	maybe_echo "setup_zsh()"
-	CONFIGFILE=$HOME/.zshrc
-	{ CONFIG=$(cat) ; } <<-'EOF'
-		# BEGIN_SHELLRC
-		[ -f ~/.shellrc ] && . ~/.shellrc
-		# END_SHELLRC
-		EOF
-	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE
-}
-
 configure_darwin() {
 	is_darwin || return 0
 	maybe_echo "configure_darwin()"
@@ -245,59 +310,20 @@ set_shell_options() {
 	[ -f "$HOME/.hushlogin" ] || touch "$HOME/.hushlogin"
 }
 
-# shellcheck disable=SC3044
-set_bash_options() {
-	is_bash || return 0
-	maybe_echo "set_bash_options()"
-	HISTIGNORE="&:[ ]*:cd ~:~:cd ..:..:clear:history:[bf]g:reboot:shutdown:exit:date:pwd:* --help"
-	HISTCONTROL="erasedups:ignorespace"
-	HISTSIZE=32768
-	HISTFILESIZE=$HISTSIZE
-	SAVEHIST=$HISTSIZE
-	HISTFILE="${HOME}/.history"
-	# Use standard ISO 8601 timestamp
-	# %F equivalent to %Y-%m-%d
-	# %T equivalent to %H:%M:%S (24-hours format)
-	# HISTTIMEFORMAT='%F %T '
-	# Prevent file overwrite on stdout redirection
-	# Use `>|` to force redirection to an existing file
-	# set -o noclobber
-	# Update window size after every command
-	shopt -s checkwinsize
-	# Automatically trim long paths in the prompt (requires Bash 4.x)
-	PROMPT_DIRTRIM=2
-	# Turn on recursive globbing (enables ** to recurse all directories)
-	shopt -s globstar 2> /dev/null
-	# Case-insensitive globbing (used in pathname expansion)
-	shopt -s nocaseglob;
-	# Append to the history file, don't overwrite it
-	shopt -s histappend
-	# Save multi-line commands as one command
-	shopt -s cmdhist
-	# Prepend cd to directory names automatically
-	shopt -s autocd 2> /dev/null
-	# Correct spelling errors during tab-completion
-	shopt -s dirspell 2> /dev/null
-	# Correct spelling errors in arguments supplied to cd
-	shopt -s cdspell 2> /dev/null
-	# This defines where cd looks for targets
-	# Add the directories you want to have fast access to, separated by colon
-	# Ex: CDPATH=".:~:~/projects" will look for targets in the current working directory, in home and in the ~/projects folder
-	CDPATH="."
-	# This allows you to bookmark your favorite places across the file system
-	# Define a variable containing a path and you will be able to cd into it regardless of the directory you're in
-	shopt -s cdable_vars
-	# Examples:
-	# export dotfiles="$HOME/dotfiles"
-	# export projects="$HOME/projects"
-	# export documents="$HOME/Documents"
-	# export dropbox="$HOME/Dropbox"
-}
-
 # shellcheck disable=SC2034
-set_zsh_options() {
+configure_zsh() {
 	is_zsh || return 0
-	maybe_echo "set_zsh_options()"
+	maybe_echo "configure_zsh()"
+	# Create init files
+	CONFIGFILE=$HOME/.zshrc
+	{ CONFIG=$(cat) ; } <<-'EOF'
+		# BEGIN_SHELLRC
+		[ -f ~/.shellrc ] && . ~/.shellrc
+		# END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	# https://zsh.sourceforge.io/Doc/Release/Options.html
 	# setopt extended_history       # record timestamp of command in HISTFILE
 	setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
@@ -314,6 +340,26 @@ set_zsh_options() {
 	HISTSIZE=50000
 	SAVEHIST=10000
 	ZSH_COMPDUMP="$XDG_CACHE_HOME/.zcompdump-$HOST"
+	configure_zshell_line_editor() {
+		bindkey "\e[A" history-search-backward
+		bindkey "\e[B" history-search-forward
+		bindkey "\eOA" history-search-backward
+		bindkey "\eOB" history-search-forward
+	}
+	load_zsh_completion() {
+		# See: https://zsh.sourceforge.io/Doc/Release/Completion-System.html#index-matcher_002dlist_002c-completion-style
+		autoload -Uz compinit && compinit
+		# autoload -U +X compinit && compinit
+		zstyle ':completion:*' matcher-list 'r:|?=**'
+		# zstyle ':completion:*' matcher-list \
+		# 	'm:{[:lower:]}={[:upper:]}' \
+		# 	'+r:|[._-]=* r:|=*' \
+		# 	'+l:|=*'
+	}
+	configure_zshell_line_editor
+	load_zsh_completion
+	unset CONFIG CONFIGFILE
+	unset -f configure_zshell_line_editor load_zsh_completion
 }
 
 set_xdg_directories() {
@@ -352,8 +398,8 @@ is_smart_terminal() {
 	esac
 }
 
-set_bash_prompt_string() {
-	maybe_echo "set_bash_prompt_string()"
+set_PS1() {
+	maybe_echo "set_PS1()"
 	if ! is_smart_terminal; then
 		PS1="> "
 		return 0
@@ -361,8 +407,8 @@ set_bash_prompt_string() {
 	PS1=$'\[\e[1m\]\u\[\e[2m\]@\h\[\e[0;2m\]:\[\e[0m\]\w\[\e[2m\] \xe2\x97\x8f \[\e[0m\]'
 }
 
-set_zsh_prompt_string() {
-	maybe_echo "set_zsh_prompt_string()"
+set_PROMPT() {
+	maybe_echo "set_PROMPT()"
 	if ! is_smart_terminal; then
 		PS1="> "
 		return 0
@@ -371,8 +417,8 @@ set_zsh_prompt_string() {
 	PROMPT=$'%B%n%{\e[2m%}@%m%{\e[0;2m%}:%{\e[0m%}%~%{\e[2m%} \xe2\x97\x8f %{\e[0m%}'
 }
 
-set_ls_colors() {
-	maybe_echo "set_ls_colors()"
+configure_ls() {
+	maybe_echo "configure_ls()"
 	# https://geoff.greer.fm/lscolors/
 	# Detect which `ls` flavor is in use
 	export CLICOLOR=1 # macOS only
@@ -467,22 +513,25 @@ configure_nano() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE NANORC_DIR
 }
 
 configure_vim() {
 	maybe_echo "configure_vim()"
-	VIM_HOME="$XDG_CONFIG_HOME/vim"
-	[ -d "$VIM_HOME" ] || (mkdir -p "$VIM_HOME"; mkdir -p "$VIM_HOME/runtime")
-	# [ -f "$VIM_HOME/vimrc" ] || touch "$VIM_HOME/vimrc"
-	# export VIM="$VIM_HOME"
-	# VIMINIT="set viminfo+=n$VIM_HOME/viminfo|:set runtimepath^=$VIM_HOME/runtime|:source $VIM_HOME/vimrc"
-	## set runtimepath=~/.config/vim/vimfiles,~/.config/vim,~/.config/vim/vimfiles/after,~/.vim/after
-	# export VIMINIT
+	if [ -z "$XDG_CONFIG_HOME" ]; then
+		CONFIGDIR=~
+		CONFIGFILE=~/.vimrc
+	else
+		CONFIGDIR=$XDG_CONFIG_HOME/vim
+		CONFIGFILE=$CONFIGDIR/vimrc
+		mkdir -p "$CONFIGDIR/runtime"
+	fi
+	VIMINIT="set viminfo+=n$CONFIGDIR/viminfo|:set runtimepath^=$CONFIGDIR/runtime|:source $CONFIGDIR/vimrc"
+	# set runtimepath=~/.config/vim/vimfiles,~/.config/vim,~/.config/vim/vimfiles/after,~/.vim/after
+	export VIMINIT
 
-	CONFIGFILE=$VIM_HOME/vimrc
 	{ CONFIG=$(cat) ; } <<-'EOF'
 		" BEGIN_SHELLRC
 
@@ -591,9 +640,9 @@ configure_vim() {
 		" END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE VIM_HOME
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE CONFIGDIR
 }
 
 configure_readline() {
@@ -655,8 +704,8 @@ configure_readline() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	if is_bash; then
 		bind -f "$CONFIGFILE"
 	fi
@@ -692,8 +741,8 @@ configure_npm() {
 		EOF
 	export NPM_CONFIG_USERCONFIG="$CONFIGFILE"
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE CACHEDIR
 }
 
@@ -766,8 +815,8 @@ configure_git() {
 		; END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	CONFIGFILE=~/.gitignore
 	{ CONFIG=$(cat) ; } <<-EOF
 		# BEGIN_SHELLRC
@@ -785,8 +834,8 @@ configure_git() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	CONFIGFILE=~/.gitattributes
 	{ CONFIG=$(cat) ; } <<-EOF
 		# BEGIN_SHELLRC
@@ -796,8 +845,8 @@ configure_git() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
 }
 
@@ -840,19 +889,10 @@ configure_wget() {
 		# END_SHELLRC
 		EOF
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
-	_prepend_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE HSTSFILE
 	unset -f maybe_local_encoding
-}
-
-configure_zshell_line_editor() {
-	is_zsh || return 0
-	maybe_echo "configure_zshell_line_editor()"
-	bindkey "\e[A" history-search-backward
-	bindkey "\e[B" history-search-forward
-	bindkey "\eOA" history-search-backward
-	bindkey "\eOB" history-search-forward
 }
 
 # shellcheck disable=SC2317
@@ -917,13 +957,6 @@ set_default_editor() {
 	fi
 }
 
-run_prompt_commands() {
-	maybe_echo "run_prompt_commands()"
-	# Make history available all sessions
-	history -a
-	venv_auto
-}
-
 set_path() {
 	maybe_append() {
 		if [ -d "$1" ]; then export PATH="$PATH":"$1"; fi
@@ -968,6 +1001,7 @@ set_path() {
 	unset -f maybe_prepend maybe_append
 }
 
+# shellcheck disable=SC2317,SC3010
 make_utility_functions() {
 	maybe_echo "make_utility_functions()"
 	wordpress_delete_thumbnails() {
@@ -975,52 +1009,13 @@ make_utility_functions() {
 			find . -regextype egrep -regex ".+-[0-9]+?x[0-9]+\.(jpe?g|png)$" -type f -print0 | xargs -0 rm
 		fi
 	}
-	wordpress_delete_thumbnails() {
-		if [[ "$(pwd)" == *"/uploads"* ]]; then
-			find . -regextype egrep -regex ".+\.(jpe?g|png)$" -type f -print0 | xargs -0 mogrify -resize "3072x3072>" -quality 92
+	resize_images() {
+		if ! command -v mogrify > /dev/null; then
+			echo "mogrify/imagemagick required. Aborting."
+			return 1
 		fi
+		find . -regextype egrep -regex ".+\.(jpe?g|png)$" -type f -print0 | xargs -0 mogrify -resize "3072x3072>" -quality 92
 	}
-}
-
-# shellcheck disable=SC3010,SC3028,SC3030,SC3044,SC3054
-load_bash_completion() {
-	is_bash || return 0
-	complete -cf sudo
-	if ! [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
-		echo "... Bash version too old (${BASH_VERSION}); not loading completions"
-		return 1
-	fi
-	type _get_comp_words_by_ref > /dev/null 2>&1 && return 0
-	maybe_echo "load_bash_completion()"
-	PATHS=(
-		"$sysconfdir/profile.d/bash_completion.sh"
-		"/usr/share/bash-completion/bash_completion"
-		"/etc/bash_completion"
-		"/sw/etc/bash_completion"
-		"/usr/local/etc/bash_completion"
-	)
-	for P in "${PATHS[@]}"; do
-		[ -f "$P" ] && maybe_echo "... $P"
-		if [[ $PS1 && -f $P ]]; then
-			unalias sudo > /dev/null 2>&1 # this alias clashes with bash-completion
-			. "$P"
-			break
-		fi
-	done
-	unset P PATHS
-}
-
-load_zsh_completion() {
-	# See: https://zsh.sourceforge.io/Doc/Release/Completion-System.html#index-matcher_002dlist_002c-completion-style
-	is_zsh || return 0
-	maybe_echo "load_zshell_completion()"
-	autoload -Uz compinit && compinit
-	zstyle ':completion:*' matcher-list 'r:|?=**'
-	# autoload -U +X compinit && compinit
-	# zstyle ':completion:*' matcher-list \
-	# 	'm:{[:lower:]}={[:upper:]}' \
-	# 	'+r:|[._-]=* r:|=*' \
-	# 	'+l:|=*'
 }
 
 load_python_completions() {
@@ -1104,8 +1099,8 @@ configure_ssh() {
 
 		# END_SHELLRC
 		EOF
-	_append_section_in_file "$CONFIG" "$CONFIGFILE"
-	_update_section_in_file "$CONFIG" "$CONFIGFILE"
+	append_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
 	unset CONFIG CONFIGFILE
 }
 
@@ -1133,43 +1128,44 @@ set_locale() {
 	export LANG=en_US.UTF-8
 }
 
+# shellcheck disable=SC2317
 set_prompt_command() {
 	maybe_echo "set_prompt_command()"
-	PROMPT_COMMAND="run_prompt_commands; $PROMPT_COMMAND"
+	_run_prompt_commands() {
+		maybe_echo "_run_prompt_commands()"
+		history -a # Make history available all sessions
+		venv_auto
+	}
+	PROMPT_COMMAND="_run_prompt_commands; $PROMPT_COMMAND"
 }
 
 # shellcheck disable=SC3001
 main() {
 	maybe_echo "main()"
 	{ FUNCTIONS_1=$(cat) ; } <<-'EOF'
-		setup_sh
-		setup_bash
-		setup_zsh
 		set_locale
-		set_bash_prompt_string
-		set_zsh_prompt_string
+		set_PS1
+		set_PROMPT
 		set_xdg_directories
 		set_path
+		set_shell_options
+		set_default_editor
 		configure_darwin
 		configure_linux
-		set_shell_options
-		set_zsh_options
-		set_bash_options
-		set_ls_colors
-		set_default_editor
-		make_aliases
+		configure_posix
+		configure_bash
+		configure_zsh
+		configure_ls
 		configure_ssh
 		configure_readline
-		configure_zshell_line_editor
 		configure_vim
 		configure_nano
 		configure_npm
 		configure_git
 		configure_wget
-		load_bash_completion
-		load_zsh_completion
 		load_python_completions
 		load_python_autovenv
+		make_aliases
 		make_utility_functions
 		set_prompt_command
 		EOF
@@ -1183,9 +1179,9 @@ main() {
 	done < <(printf '%s' "$FUNCTIONS_1")
 	unset FUNCTIONS_1
 	{ FUNCTIONS_2=$(cat) ; } <<-'EOF'
-		_prepend_section_in_file
-		_append_section_in_file
-		_update_section_in_file
+		prepend_section_in_file
+		append_section_in_file
+		update_section_in_file
 		is_darwin
 		is_linux
 		is_smart_terminal
