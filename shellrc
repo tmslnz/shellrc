@@ -1265,12 +1265,12 @@ set_prompt_command() {
 }
 
 _shellrc_help() {
-	{ SHELLRC_HELP=$(cat) ; } <<-EOF
+	{ SHELLRC_HELP=$(cat) ; } <<-'EOF'
 		Recommended tools:
-		- fd
-		- fzf
-		- zoxide
-		- ripgrep
+		- fd: easier, faster `find`
+		- fzf: fuzzy search on STDIN
+		- zoxide: bookmark paths
+		- ripgrep: recursive directory regex search
 		EOF
 	printf "%s\n" "$SHELLRC_HELP"
 	unset SHELLRC_HELP
