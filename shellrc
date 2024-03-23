@@ -1265,6 +1265,9 @@ sudo_set_macos_defaults() {
 	defaults write com.apple.screencapture disable-shadow -bool true
 	defaults write com.apple.dock "show-recents" -bool false
 	defaults write com.apple.CrashReporter DialogType -string "Server"
+	defaults write com.apple.TextEdit RichText -int 0
+	defaults write com.apple.TextEdit PlainTextEncoding -int 4
+	defaults write com.apple.TextEdit PlainTextEncodingForWrite -int 4
 }
 
 sudo_enable_homebrew_bash() {
