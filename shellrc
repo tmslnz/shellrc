@@ -202,7 +202,8 @@ set_path() {
 	# Homebrew
 	if command -v brew > /dev/null; then
 		BREW_PREFIX=$(brew --prefix)
-		prepend_path "$BREW_PREFIX/bin:$BREW_PREFIX/sbin"
+		prepend_path "$BREW_PREFIX/bin"
+		prepend_path "$BREW_PREFIX/sbin"
 		prepend_path "$BREW_PREFIX/opt/sqlite/bin"
 		prepend_path "$BREW_PREFIX/opt/ffmpeg@5/bin"
 		prepend_path "$BREW_PREFIX/opt/php@8.1/bin"
