@@ -40,6 +40,9 @@ main() {
 		configure_npm
 		configure_git
 		configure_wget
+		configure_fd
+		configure_fzf
+		configure_zoxide
 		load_python_completions
 		load_python_autovenv
 		make_aliases
