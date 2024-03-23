@@ -69,6 +69,37 @@ main() {
 	unset FUNCTIONS
 }
 
+# shellcheck disable=SC3010,SC3030,SC3024
+shellrc() {
+	POSITIONAL_ARGS=()
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			# -s|--searchpath)
+				# SEARCHPATH="$2"
+				# shift # past argument
+				# shift # past value
+				# ;;
+			-u|--update)
+				_shellrc_update
+				shift # past argument
+				;;
+			-h|--help)
+				shellrc_help
+				shift # past argument
+				;;
+			-*|--*)
+				echo "Unknown option $1"
+				exit 1
+				;;
+			*)
+				POSITIONAL_ARGS+=("$1") # save positional arg
+				shift # past argument
+				;;
+		esac
+	done
+	set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+}
+
 maybe_echo() {
 	[ -z "$SHELLRC_DEBUG" ] && return 0
 	[ "$SHELLRC_DEBUG" = true ] && echo "$1"
@@ -216,7 +247,7 @@ _get_shellrc_file() {
 	unset SHELLRC_FILE
 }
 
-update_shellrc() {
+_shellrc_update() {
 	# https://stackoverflow.com/questions/24118224/how-to-make-asynchronous-function-calls-in-shell-scripts
 	F=$(mktemp)
 	# utc seconds: date "+%s"
@@ -1007,7 +1038,7 @@ configure_wget() {
 	fi
 	maybe_local_encoding() {
 		if wget --help | grep -q "local-encoding"; then
-		    printf "local_encoding = UTF-8"
+			printf "local_encoding = UTF-8"
 		fi
 	}
 	if wget --help | grep -q "hsts"; then
@@ -1227,6 +1258,18 @@ set_prompt_command() {
 		venv_auto
 	}
 	PROMPT_COMMAND="_run_prompt_commands; $PROMPT_COMMAND"
+}
+
+_shellrc_help() {
+	{ SHELLRC_HELP=$(cat) ; } <<-EOF
+		Recommended tools:
+		- fd
+		- fzf
+		- zoxide
+		- ripgrep
+		EOF
+	printf "%s\n" "$SHELLRC_HELP"
+	unset SHELLRC_HELP
 }
 
 sudo_cleanup_macos() {
