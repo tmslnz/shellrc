@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# shellcheck disable=SC1090
+# shellcheck disable=SC1090,SC1091
 # Cross-shell rc file
 # sourced by
 #  ~/.bash_profile
