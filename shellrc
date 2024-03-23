@@ -92,7 +92,7 @@ shellrc() {
 				;;
 			-*|--*)
 				echo "Unknown option $1"
-				exit 1
+				return 1
 				;;
 			*)
 				POSITIONAL_ARGS+=("$1") # save positional arg
