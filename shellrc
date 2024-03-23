@@ -423,18 +423,18 @@ configure_nano() {
 	command -v nano > /dev/null || return 1
 	maybe_echo "configure_nano()"
 	if command -v brew > /dev/null && [ -d "$(brew --prefix)/share/nanorc" ]; then
-		NANORCS="$(brew --prefix)/share/nanorc"
+		NANORC_DIR="$(brew --prefix)/share/nanorc"
 	elif command -v brew > /dev/null; then
 		echo "Run:"
 		echo "$ brew install nano nanorc"
 	elif [ -d /usr/share/nano ]; then
-		NANORCS="/usr/share/nano"
+		NANORC_DIR="/usr/share/nano"
 	elif [ -d ~/.nano/nanorc ]; then
-		NANORCS=~/.nano/nanorc
+		NANORC_DIR=~/.nano/nanorc
 	elif [ -d /usr/share/nano-syntax-highlighting ]; then
-		NANORCS="/usr/share/nano-syntax-highlighting"
+		NANORC_DIR="/usr/share/nano-syntax-highlighting"
 	elif [ -d /etc/nanorc ]; then
-		NANORCS="/etc/nanorc"
+		NANORC_DIR="/etc/nanorc"
 	fi
 
 	CONFIGFILE=~/.nanorc
@@ -467,7 +467,7 @@ configure_nano() {
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	_append_section_in_file "$CONFIG" "$CONFIGFILE"
 	_update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE NANORCS
+	unset CONFIG CONFIGFILE NANORC_DIR
 }
 
 configure_vim() {
