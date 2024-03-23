@@ -87,7 +87,7 @@ shellrc() {
 				shift # past argument
 				;;
 			-h|--help)
-				shellrc_help
+				_shellrc_help
 				shift # past argument
 				;;
 			-*|--*)
