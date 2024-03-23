@@ -45,7 +45,7 @@ main() {
 		make_aliases
 		make_utility_functions
 		set_prompt_command
-		
+
 		: must unset last
 		prepend_section_in_file
 		append_section_in_file
@@ -168,7 +168,7 @@ update_shellrc() {
 	# file modfied time: date -r <filename> "+%s"
 	# Find real .shellrc file if symlinked
 	SHELLRC_FILE=$(_get_shellrc_file)
-	if ! curl -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
+	if ! curl -H 'Cache-Control: no-cache' -s -L -o "$F" https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc; then
 		echo "... curl error"
 		return 1
 	fi
