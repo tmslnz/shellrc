@@ -1126,7 +1126,7 @@ configure_ssh() {
 	unset CONFIG CONFIGFILE
 }
 
-cleanup_macos() {
+sudo_cleanup_macos() {
 	is_darwin || return 0
 	sudo -v
 	# # Sparkle framework leftovers
@@ -1135,6 +1135,50 @@ cleanup_macos() {
 	# # https://news.ycombinator.com/item?id=11095581
 	# rm "$HOME/Library/Caches/Adobe/Lightroom/Video/Media Cache Files/*"
 	# rm "$HOME/Library/Application Support/Adobe/Common/Media Cache Files/*"
+}
+
+sudo_configure_dnsmasq() {
+	command -v dnsmasq > /dev/null || return 1
+	maybe_echo "configure_dnsmasq()"
+	CONFIGFILE=/etc/dnsmasq.conf
+	{ CONFIG=$(cat) ; } <<-EOF
+		# BEGIN_SHELLRC
+
+		domain-needed         # Only lookup full domains
+		bogus-priv            # No reverse IP lookups
+		no-resolv             # Don't use DNS servers listed in resolv.conf
+		no-poll               # Don't poll changes in resolv.conf
+		no-hosts              # Don't read /etc/hosts
+		all-servers           # Use all upstream server and take first reply
+		dns-loop-detect       # Enable code to detect DNS forwarding loops
+		clear-on-reload       # Clear the DNS cache when upstream servers change
+
+		## Upstream DNS servers
+		server=8.8.8.8        # Google
+
+		# addn-hosts=/etc/hosts-stevenblack-hosts-ads
+		# addn-hosts=/etc/hosts-adobe
+
+		listen-address=127.0.0.1
+
+		## Local development
+		address=/.test/127.0.0.1
+		address=/.dev/127.0.0.1
+
+		# END_SHELLRC
+		EOF
+	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
+	prepend_section_in_file "$CONFIG" "$CONFIGFILE"
+	update_section_in_file "$CONFIG" "$CONFIGFILE"
+	unset CONFIG CONFIGFILE
+}
+
+sudo_set_macos_defaults() {
+	is_darwin || return 1
+	sudo -v
+	defaults write com.apple.iCal "Show Week Numbers" -bool true
+	defaults write com.apple.iCal "TimeZone support enabled" -bool true
+	defaults write com.apple.iCal CalendarSidebarShown -bool true
 }
 
 set_locale() {
