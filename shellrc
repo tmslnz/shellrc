@@ -206,8 +206,8 @@ set_path() {
 		prepend_path "$BREW_PREFIX/sbin"
 		if [ -d "$BREW_PREFIX/opt" ]; then
 			for D in "$BREW_PREFIX"/opt/*/; do
-				append_path "$D/bin"
-				append_path "$D/sbin"
+				append_path "${D}bin"
+				append_path "${D}sbin"
 			done
 		fi
 		append_path "$BREW_PREFIX/opt/python/libexec/bin"
@@ -231,9 +231,9 @@ set_path() {
 	prepend_path "$HOME/local"
 	if [ -d "$HOME/local" ]; then
 		for D in "$HOME"/local/*/; do
-			prepend_path "$D"
-			prepend_path "$D/bin"
-			prepend_path "$D/sbin"
+			prepend_path "${D}"
+			prepend_path "${D}bin"
+			prepend_path "${D}sbin"
 		done
 	fi
 	unset D
