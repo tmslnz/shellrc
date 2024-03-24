@@ -381,6 +381,7 @@ configure_bash() {
 
 	# shellcheck disable=SC3010,SC3028,SC3030,SC3044,SC3054
 	load_bash_completion() {
+		# https://github.com/scop/bash-completion
 		complete -cf sudo
 		if ! [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
 			echo "... Bash version too old (${BASH_VERSION}); not loading completions"
@@ -388,12 +389,15 @@ configure_bash() {
 		fi
 		type _get_comp_words_by_ref > /dev/null 2>&1 && return 0
 		maybe_echo "load_bash_completion()"
+		if command -v brew > /dev/null; then
+			BREW_PREFIX=$(brew --prefix)
+		fi
+		# Possible bash-completion init scripts
 		PATHS=(
-			"$sysconfdir/profile.d/bash_completion.sh"
-			"/usr/share/bash-completion/bash_completion"
+			"/etc/profile.d/bash_completion.sh"
 			"/etc/bash_completion"
 			"/sw/etc/bash_completion"
-			"/usr/local/etc/bash_completion"
+			"$BREW_PREFIX/etc/bash_completion"
 		)
 		for P in "${PATHS[@]}"; do
 			[ -f "$P" ] && maybe_echo "... $P"
@@ -403,7 +407,7 @@ configure_bash() {
 				break
 			fi
 		done
-		unset P PATHS
+		unset P PATHS BREW_PREFIX
 	}
 	set_bash_options
 	load_bash_completion
