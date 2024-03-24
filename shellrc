@@ -231,8 +231,9 @@ set_path() {
 	prepend_path "$HOME/local"
 	if [ -d "$HOME/local" ]; then
 		for D in "$HOME"/local/*/; do
-			export PATH="$D:$PATH"
+			prepend_path "$D"
 			prepend_path "$D/bin"
+			prepend_path "$D/sbin"
 		done
 	fi
 	unset D
