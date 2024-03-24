@@ -204,14 +204,14 @@ set_path() {
 		BREW_PREFIX=$(brew --prefix)
 		prepend_path "$BREW_PREFIX/bin"
 		prepend_path "$BREW_PREFIX/sbin"
-		prepend_path "$BREW_PREFIX/opt/sqlite/bin"
-		prepend_path "$BREW_PREFIX/opt/ffmpeg@5/bin"
-		prepend_path "$BREW_PREFIX/opt/php@8.1/bin"
-		prepend_path "$BREW_PREFIX/opt/php@8.1/sbin"
-		prepend_path "$BREW_PREFIX/opt/python/libexec/bin"
-		prepend_path "$BREW_PREFIX/opt/python@3.12/bin"
-		prepend_path "$BREW_PREFIX/usr/local/opt/automysqlbackup/sbin"
-		unset BREW_PREFIX
+		if [ -d "$BREW_PREFIX/opt" ]; then
+			for D in "$BREW_PREFIX"/opt/*/; do
+				append_path "$D/bin"
+				append_path "$D/sbin"
+			done
+		fi
+		append_path "$BREW_PREFIX/opt/python/libexec/bin"
+		unset BREW_PREFIX D
 	fi
 	# macOS system utils
 	append_path "/usr/libexec"
