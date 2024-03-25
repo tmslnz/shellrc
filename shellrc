@@ -268,6 +268,7 @@ _shellrc_update() {
 		TS=$(date -u +"%Y-%m-%dT%H%M%S")
 		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" > /dev/null 2>&1
 		cat "$F" > "$SHELLRC_FILE"
+		SHELLRC_SOURCED=false
 		. "$SHELLRC_FILE"
 	else
 		echo "... no updates available"
