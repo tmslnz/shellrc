@@ -1145,6 +1145,30 @@ set_default_editor() {
 # shellcheck disable=SC2317,SC3010
 make_utility_functions() {
 	maybe_echo "make_utility_functions()"
+	foreach_do() {
+		FIRST="$1"
+		shift
+		find "$FIRST" -exec "$@" -- {} +
+		unset FIRST
+	}
+	find_all_bins() {
+		# https://unix.stackexchange.com/a/120870
+		{
+			set -f
+			IFS=:
+			for d in $PATH; do
+				set +f
+				[ -n "$d" ] || d=.
+				for f in "$d"/.[!.]* "$d"/..?* "$d"/*; do
+					if [ -f "$f" ] && [ -x "$f" ]; then
+						# printf '%s\n' "${f##*/}"
+						printf '%s\t%s\n' "${f##*/}" "$f"
+					fi
+				done
+			done
+		} | sort
+		unset f d
+	}
 	wordpress_delete_thumbnails() {
 		if [[ "$(pwd)" == *"/uploads"* ]]; then
 			find . -regextype egrep -regex ".+-[0-9]+?x[0-9]+\.(jpe?g|png)$" -type f -print0 | xargs -0 rm
