@@ -383,7 +383,6 @@ configure_bash() {
 	# shellcheck disable=SC3010,SC3028,SC3030,SC3044,SC3054
 	load_bash_completion() {
 		# https://github.com/scop/bash-completion
-		complete -cf sudo
 		if ! [ "${BASH_VERSINFO:-0}" -ge 4 ]; then
 			echo "... Bash version too old (${BASH_VERSION}); not loading completions"
 			return 1
@@ -408,6 +407,7 @@ configure_bash() {
 				break
 			fi
 		done
+		complete -cf sudo
 		unset P PATHS BREW_PREFIX
 	}
 	set_bash_options
