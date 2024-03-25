@@ -1271,6 +1271,10 @@ set_prompt_command() {
 
 _shellrc_help() {
 	{ SHELLRC_HELP=$(cat) ; } <<-'EOF'
+		If using Bash >= 4 on macOS (3.2 is default):
+		$ brew uninstall bash-completion
+		$ brew install bash-completion@2
+		
 		Recommended tools:
 		- fd: easier, faster `find`
 		- fzf: fuzzy search on STDIN
