@@ -1162,7 +1162,7 @@ make_utility_functions() {
 				[ -n "$d" ] || d=.
 				for f in "$d"/.[!.]* "$d"/..?* "$d"/*; do
 					if [ -f "$f" ] && [ -x "$f" ]; then
-						printf '%s\t%s\n' "${f##*/}" "$f" | column -t
+						printf '%s\t%s\n' "${f##*/}" "$f"
 					fi
 				done
 			done
