@@ -26,8 +26,8 @@ main() {
 		set_shell_options
 		set_default_editor
 		configure_darwin
-		configure_linux
 		configure_posix
+		configure_linux
 		configure_bash
 		configure_zsh
 		configure_ls
