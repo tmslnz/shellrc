@@ -1179,7 +1179,7 @@ configure_ssh() {
 
 		## SSH client settings for all hosts
 		##
-
+		IgnoreUnknown UseKeychain
 		ServerAliveInterval 30
 		ServerAliveCountMax 120
 		Compression yes
