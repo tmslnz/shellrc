@@ -1179,7 +1179,6 @@ configure_ssh() {
 
 		## SSH client settings for all hosts
 		##
-		IgnoreUnknown UseKeychain
 		ServerAliveInterval 30
 		ServerAliveCountMax 120
 		Compression yes
@@ -1187,6 +1186,7 @@ configure_ssh() {
 
 		## Useful to auto-unlock keys macOS
 		Host *
+			IgnoreUnknown UseKeychain,AddKeysToAgent
 		    AddKeysToAgent yes
 		    UseKeychain yes
 
