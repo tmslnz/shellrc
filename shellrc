@@ -137,15 +137,15 @@ _is_available() {
 
 command_has_option() {
 	HELPSTACK=''
-	command -v "$1" > /dev/null || return 1
+	_is_available "$1" || return 1
 	[ -z "$2" ] && return 1
 	if $1 --help > /dev/null 2>&1; then
 		HELPSTACK=$($1 --help)
 	elif $1 -h > /dev/null 2>&1; then
 		HELPSTACK=$($1 -h)
-	elif command -v man > /dev/null 2>&1 && man "$1" > /dev/null 2>&1; then
+	elif _is_available man && man "$1" > /dev/null 2>&1; then
 		HELPSTACK=$(man "$1")
-	elif command -v info > /dev/null 2>&1 && info "$1" > /dev/null 2>&1; then
+	elif _is_available info && info "$1" > /dev/null 2>&1; then
 		HELPSTACK=$(info "$1")
 	fi
 	[ -z "$HELPSTACK" ] && return 1
@@ -233,7 +233,7 @@ prepend_path() {
 
 set_path() {
 	# Homebrew
-	if command -v brew > /dev/null; then
+	if _is_available brew; then
 		BREW_PREFIX=$(brew --prefix)
 		prepend_path "$BREW_PREFIX/bin"
 		prepend_path "$BREW_PREFIX/sbin"
@@ -333,7 +333,7 @@ configure_bash() {
 	# Create init files
 	if [ "$BASH_VERSINFO" -lt 4 ]; then
 		echo "You are using a very old version of Bash: $BASH_VERSION"
-		if is_darwin && command -v brew > /dev/null; then
+		if is_darwin && _is_available brew; then
 			echo "Run:"
 			echo "$ brew install bash"
 			echo "$ sudo_enable_homebrew_bash"
@@ -425,7 +425,7 @@ configure_bash() {
 		fi
 		type _get_comp_words_by_ref > /dev/null 2>&1 && return 0
 		maybe_echo "load_bash_completion()"
-		if command -v brew > /dev/null; then
+		if _is_available brew; then
 			BREW_PREFIX=$(brew --prefix)
 		fi
 		# Possible bash-completion init scripts
@@ -532,13 +532,13 @@ configure_zsh() {
 
 configure_fzf() {
 	maybe_echo "configure_fzf()"
-	command -v fzf > /dev/null || return 1
+	_is_available fzf || return 1
 	if is_bash; then
 		command_has_option fzf bash && eval "$(fzf --bash)"
 	elif is_zsh; then
 		command_has_option fzf zsh && eval "$(fzf --zsh)"
 	fi
-	if command -v fd > /dev/null; then
+	if _is_available fd; then
 		export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'
 		export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 	fi
@@ -549,7 +549,7 @@ configure_fzf() {
 
 configure_fd() {
 	maybe_echo "configure_fd()"
-	command -v fd > /dev/null || return 1
+	_is_available fd || return 1
 	if is_bash; then
 		eval "$(fzf --bash)"
 	elif is_zsh; then
@@ -559,7 +559,7 @@ configure_fd() {
 
 configure_zoxide() {
 	maybe_echo "configure_zoxide()"
-	command -v zoxide > /dev/null || return 1
+	_is_available zoxide || return 1
 	if is_bash; then
 		eval "$(zoxide init bash)";
 	elif is_zsh; then
@@ -676,11 +676,11 @@ make_aliases() {
 }
 
 configure_nano() {
-	command -v nano > /dev/null || return 1
+	_is_available nano || return 1
 	maybe_echo "configure_nano()"
-	if command -v brew > /dev/null && [ -d "$(brew --prefix)/share/nanorc" ]; then
+	if _is_available brew && [ -d "$(brew --prefix)/share/nanorc" ]; then
 		NANORC_DIR="$(brew --prefix)/share/nanorc"
-	elif command -v brew > /dev/null; then
+	elif _is_available brew; then
 		echo "Run:"
 		echo "$ brew install nano nanorc"
 	elif [ -d ~/.nano/nanorc ]; then
@@ -930,7 +930,7 @@ configure_readline() {
 
 configure_npm() {
 	maybe_echo "configure_npm()"
-	command -v npm > /dev/null || return 1
+	_is_available npm || return 1
 	if [ -z "$XDG_CONFIG_HOME" ]; then
 		CONFIGFILE=~/.npmrc
 	else
@@ -964,7 +964,7 @@ configure_npm() {
 
 configure_git() {
 	maybe_echo "configure_git()"
-	command -v git > /dev/null || return 1
+	_is_available git || return 1
 	CONFIGFILE=~/.gitconfig
 	{ CONFIG=$(cat) ; } <<-EOF
 		; BEGIN_SHELLRC
@@ -973,20 +973,26 @@ configure_git() {
 
 		excludesfile = ~/.gitignore
 		attributesfile = ~/.gitattributes
-		# Treat spaces before tabs, lines that are indented with 8 or more spaces, and all kinds of trailing whitespace as an error
+		
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
 		whitespace = space-before-tab,trailing-space
-		editor = nano
-		quotepath = false
-		# Autosave & Versions on OSX screw around with rebase workflow
-		# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/
-		$(is_darwin && echo "trustctime = false")
-		$(is_darwin && echo "autocrlf = input")
-		$(is_linux && echo "autocrlf = input")
-		$(is_windows && echo "autocrlf = true")
 
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+		quotepath = false
+
+		$(is_darwin && echo "# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/")
+		$(is_darwin && echo "trustctime = false")
+
+		# https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings
+		$(is_windows && echo "autocrlf = true" || echo "autocrlf = input")
+
+		bigFileThreshold = 64m
+		
+		$(_is_available nano && echo "editor = nano")
+		
 		[color]
 
-		# Use colors in Git commands that are capable of colored output when outputting to the terminal
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
 		ui = auto
 
 		[merge]
@@ -1068,7 +1074,7 @@ configure_git() {
 }
 
 configure_wget() {
-	command -v wget > /dev/null || return 1
+	_is_available wget || return 1
 	if [ -z "$XDG_CONFIG_HOME" ]; then
 		CONFIGFILE=~/.wgetrc
 		HSTSFILE=~/.wget-hsts
@@ -1169,7 +1175,7 @@ load_python_autovenv() {
 
 set_default_editor() {
 	maybe_echo "set_default_editor()"
-	if command -v nano > /dev/null; then
+	if _is_available nano; then
 		export VISUAL="nano"
 		export EDITOR="nano"
 	fi
@@ -1218,9 +1224,9 @@ make_utility_functions() {
 load_python_completions() {
 	# for zsh: https://stackoverflow.com/a/75791863
 	maybe_echo "load_python_completions()"
-	command -v 'register-python-argcomplete' > /dev/null || return 1
+	_is_available 'register-python-argcomplete' || return 1
 	load_python_completion() {
-		command -v "$1" > /dev/null && eval "$(register-python-argcomplete "$1")"
+		_is_available "$1" && eval "$(register-python-argcomplete "$1")"
 	}
 	load_python_completion pipx
 	unset -f load_python_completion
