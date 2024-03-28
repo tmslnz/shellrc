@@ -251,6 +251,8 @@ set_path() {
 	prepend_path "/Applications/VMware Fusion.app/Contents/Library"
 	prepend_path "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
 	prepend_path "/Applications"
+	# Windows
+	prepend_path "$HOME/AppData/Local/Programs/Microsoft VS Code/bin"
 	# Extra
 	append_path "$HOME/.cargo/bin"
 	prepend_path "$HOME/bin/automysqlbackup-v3.0_rc6"
