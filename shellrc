@@ -116,6 +116,10 @@ is_linux() {
 	uname | awk '!/[Ll]inux/{exit 1}'
 }
 
+is_windows() {
+	uname | awk '{print tolower($0)}' | awk '!/msys|cygwin|mingw/{exit 1}'
+}
+
 is_bash() {
 	[ -z "$BASH_VERSION" ] && return 1 || return 0
 }
