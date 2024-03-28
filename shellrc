@@ -130,6 +130,11 @@ is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1 || return 0
 }
 
+_is_available() {
+	[ -z "$1" ] && return 1
+	command -v "$1" > /dev/null 2>&1
+}
+
 command_has_option() {
 	HELPSTACK=''
 	command -v "$1" > /dev/null || return 1
@@ -637,41 +642,37 @@ configure_ls() {
 
 make_aliases() {
 	maybe_echo "make_aliases()"
-	is_available() {
-		command -v "$1" > /dev/null
-	}
 	if ! type _get_comp_words_by_ref > /dev/null 2>&1; then
 		alias sudo='sudo ' # Enable sudo <alias>, only if bash-completion is not loaded.
 	fi
 	alias lsd="ls -la \${LS_COLOR_FLAG} | grep '^d'" # List only directories
-	is_available nano && alias crontab="EDITOR=nano crontab" # Reset EDITOR for crontab
-	is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
-	is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
-	if ! is_available pgrep; then
+	_is_available nano && alias crontab="EDITOR=nano crontab" # Reset EDITOR for crontab
+	_is_available dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
+	_is_available dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
+	if ! _is_available pgrep; then
 		# shellcheck disable=SC2317,SC2009
 		psgrep () {
 			ps aux | grep -Ev grep | grep "$1" | awk '{print $2}'
 		}
 	fi
 	# shellcheck disable=SC2142
-	is_available ip && alias localip="ip route get 1 | awk '{print \$7;exit}'"
-	is_available ipconfig && alias localip="ipconfig getifaddr en0"
+	_is_available ip && alias localip="ip route get 1 | awk '{print \$7;exit}'"
+	_is_available ipconfig && alias localip="ipconfig getifaddr en0"
 	alias ips="ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'"
 	# For example, to list all directories that contain a certain file:
 	#   find . -name .gitattributes | map dirname
 	alias map="xargs -n1"
-	is_available htop && alias htopme='htop --user="$(whoami)"'
+	_is_available htop && alias htopme='htop --user="$(whoami)"'
 	# shellcheck disable=SC2154
 	alias ssh-list-keys='for keyfile in ~/.ssh/*.pub; do ssh-keygen -l -f "$keyfile"; done | uniq'
 	# macOS fallbacks
-	! is_available md5sum && alias md5sum="md5"
-	! is_available sha1sum && alias sha1sum="shasum"
+	! _is_available md5sum && alias md5sum="md5"
+	! _is_available sha1sum && alias sha1sum="shasum"
 	is_darwin && alias dsstore="find . -type f -name '*.DS_Store' -ls -delete"
 	# Docker container aliases
-	if is_available docker; then
+	if _is_available docker; then
 		alias photostructure="docker exec -u photostructure -it photostructure ./photostructure"
 	fi
-	unset -f is_available
 }
 
 configure_nano() {
