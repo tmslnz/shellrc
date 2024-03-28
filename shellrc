@@ -978,9 +978,10 @@ configure_git() {
 		quotepath = false
 		# Autosave & Versions on OSX screw around with rebase workflow
 		# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/
-		trustctime = false
-		autocrlf = false
-		# safecrlf = true
+		$(is_darwin && echo "trustctime = false")
+		$(is_darwin && echo "autocrlf = input")
+		$(is_linux && echo "autocrlf = input")
+		$(is_windows && echo "autocrlf = true")
 
 		[color]
 
