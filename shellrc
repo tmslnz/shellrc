@@ -142,7 +142,7 @@ command_has_option() {
 		HELPSTACK=$(info "$1")
 	fi
 	[ -z "$HELPSTACK" ] && return 1
-	if echo "$HELPSTACK" | grep -q "$2 "; then
+	if echo "$HELPSTACK" | grep --quiet --fixed-strings --word-regexp --regexp "$2"; then
 		unset HELPSTACK
 		return 0
 	else
