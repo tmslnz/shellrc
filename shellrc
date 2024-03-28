@@ -527,9 +527,9 @@ configure_fzf() {
 	maybe_echo "configure_fzf()"
 	command -v fzf > /dev/null || return 1
 	if is_bash; then
-		eval "$(fzf --bash)"
+		command_has_option fzf bash && eval "$(fzf --bash)"
 	elif is_zsh; then
-		eval "$(fzf --zsh)"
+		command_has_option fzf zsh && eval "$(fzf --zsh)"
 	fi
 	if command -v fd > /dev/null; then
 		export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'
