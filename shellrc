@@ -1080,6 +1080,7 @@ configure_wget() {
 			printf "local_encoding = UTF-8"
 		fi
 	}
+	alias wget="wget --config '$CONFIGFILE'"
 	if command_has_option wget hsts; then
 		alias wget="wget --config '$CONFIGFILE' --hsts-file '$HSTSFILE'"
 	fi
