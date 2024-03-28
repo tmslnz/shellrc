@@ -133,16 +133,12 @@ command_has_option() {
 	command -v "$1" > /dev/null || return 1
 	[ -z "$2" ] && return 1
 	if $1 --help > /dev/null 2>&1; then
-		echo "$1 --help"
 		HELPSTACK=$($1 --help)
 	elif $1 -h > /dev/null 2>&1; then
-		echo "$1 -h"
 		HELPSTACK=$($1 -h)
 	elif command -v man > /dev/null 2>&1 && man "$1" > /dev/null 2>&1; then
-		echo "man $1"
 		HELPSTACK=$(man "$1")
 	elif command -v info > /dev/null 2>&1 && info "$1" > /dev/null 2>&1; then
-		echo "info $1"
 		HELPSTACK=$(info "$1")
 	fi
 	[ -z "$HELPSTACK" ] && return 1
