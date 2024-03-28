@@ -1236,9 +1236,9 @@ configure_ssh() {
 		Compression yes
 		UseRoaming no
 
-		## Useful to auto-unlock keys macOS
+		## Store passphrases in macOS Keychain
 		Host *
-			IgnoreUnknown UseKeychain,AddKeysToAgent
+		    IgnoreUnknown UseKeychain,AddKeysToAgent
 		    AddKeysToAgent yes
 		    UseKeychain yes
 
