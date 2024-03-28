@@ -298,7 +298,7 @@ _shellrc_update() {
 		echo "... curl error"
 		return 1
 	fi
-	if ! diff -EBq "$SHELLRC_FILE" "$F" &>/dev/null; then
+	if ! diff -EBq "$SHELLRC_FILE" "$F" > /dev/null 2>&1; then
 		echo "... writing $SHELLRC_FILE"
 		TS=$(date -u +"%Y-%m-%dT%H%M%S")
 		mv "$SHELLRC_FILE" "$SHELLRC_FILE-$TS" > /dev/null 2>&1
