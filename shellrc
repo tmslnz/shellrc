@@ -128,6 +128,32 @@ is_zsh() {
 	[ -z "$ZSH_VERSION" ] && return 1 || return 0
 }
 
+command_has_option() {
+	HELPSTACK=''
+	command -v "$1" > /dev/null || return 1
+	[ -z "$2" ] && return 1
+	if $1 --help > /dev/null 2>&1; then
+		echo "$1 --help"
+		HELPSTACK=$($1 --help)
+	elif $1 -h > /dev/null 2>&1; then
+		echo "$1 -h"
+		HELPSTACK=$($1 -h)
+	elif command -v man > /dev/null 2>&1 && man "$1" > /dev/null 2>&1; then
+		echo "man $1"
+		HELPSTACK=$(man "$1")
+	elif command -v info > /dev/null 2>&1 && info "$1" > /dev/null 2>&1; then
+		echo "info $1"
+		HELPSTACK=$(info "$1")
+	fi
+	[ -z "$HELPSTACK" ] && return 1
+	if echo "$HELPSTACK" | grep -q "$2 "; then
+		unset HELPSTACK
+		return 0
+	else
+		return 1
+	fi
+}
+
 prepend_section_in_file() {
 	[ -z "$1" ] && return 0
 	maybe_echo "prepend_section_in_file()"
@@ -668,9 +694,8 @@ configure_nano() {
 	make_nanorc_paths() {
 		find -L "$NANORC_DIR" -maxdepth 1 -type f | xargs -n1 printf 'include "%s"\n'
 	}
-	HAYSTACK=$(nano --help)
 	maybe_set() {
-		echo "$HAYSTACK" | grep -q "$1" && echo "set $1"
+		command_has_option nano "$1" && echo "set $1"
 	}
 	CONFIGFILE=~/.nanorc
 	{ CONFIG=$(cat) ; } <<-EOF
@@ -704,7 +729,7 @@ configure_nano() {
 	[ ! -f "$CONFIGFILE" ] && touch "$CONFIGFILE"
 	append_section_in_file "$CONFIG" "$CONFIGFILE"
 	update_section_in_file "$CONFIG" "$CONFIGFILE"
-	unset CONFIG CONFIGFILE NANORC_DIR HAYSTACK
+	unset CONFIG CONFIGFILE NANORC_DIR
 	unset -f make_nanorc_paths maybe_set
 }
 
@@ -1051,11 +1076,11 @@ configure_wget() {
 		HSTSFILE=$XDG_CONFIG_HOME/wget/wget-hsts
 	fi
 	maybe_local_encoding() {
-		if wget --help | grep -q "local-encoding"; then
+		if command_has_option wget local-encoding; then
 			printf "local_encoding = UTF-8"
 		fi
 	}
-	if wget --help | grep -q "hsts"; then
+	if command_has_option wget hsts; then
 		alias wget="wget --config '$CONFIGFILE' --hsts-file '$HSTSFILE'"
 	fi
 	{ CONFIG=$(cat) ; } <<-EOF
