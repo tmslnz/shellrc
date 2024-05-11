@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 #
 # Single-file environment configuration
-# shellcheck disable=SC1090,SC1091
+# shellcheck disable=SC1090,SC1091,SC2262,SC2263
 #
 # time for i in {1..1000}; do command -and options; done;
 { # Wrap everything in a block to prevent execution if partially downloaded
@@ -1616,11 +1616,11 @@ configure_ssh() {
 		# END_SHELLRC
 	EOF
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
-	if ! _shellrc_is_darwin &&
-		! _shellrc_command keychain &&
-		_shellrc_command /usr/bin/ssh-agent; then
-		# https://web.archive.org/web/20210506080335/https://mah.everybody.org/docs/ssh
-		# https://wiki.archlinux.org/title/SSH_keys
+	if _shellrc_is_linux && _shellrc_command keychain; then
+		if test -x /usr/bin/keychain; then
+			eval "$(keychain --eval --ignore-missing id_ed25519)"
+		fi
+	elif test -x /usr/bin/ssh-agent; then
 		SSH_ENV="$HOME/.ssh/environment"
 		start_agent() {
 			/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
@@ -1628,12 +1628,11 @@ configure_ssh() {
 			. "${SSH_ENV}" >/dev/null
 			# /usr/bin/ssh-add
 		}
-
 		if test -f "${SSH_ENV}"; then
 			. "${SSH_ENV}" >/dev/null
-			#ps ${SSH_AGENT_PID} doesn't work under cywgin
-			# shellcheck disable=2009
-			ps -ef | grep "${SSH_AGENT_PID}" | grep ssh-agent$ >/dev/null || start_agent
+			# `ps ${SSH_AGENT_PID}` doesn't work under cywgin
+			# shellcheck disable=SC2009
+			ps -ef | grep -q "${SSH_AGENT_PID}" | grep -q ssh-agent$ || start_agent
 		else
 			start_agent
 		fi
