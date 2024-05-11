@@ -1,0 +1,2400 @@
+#!/usr/bin/env sh
+#
+# Single-file environment configuration
+# shellcheck disable=SC1090,SC1091
+#
+# time for i in {1..1000}; do command -and options; done;
+{ # Wrap everything in a block to prevent execution if partially downloaded
+# Flags:
+test "${SHELLRC_DEBUG:-}" || SHELLRC_DEBUG=false
+test "${SHELLRC_VERBOSE:-}" || SHELLRC_VERBOSE=false
+test "${SHELLRC_UPDATECHECK:-}" || SHELLRC_UPDATECHECK=true
+
+test "${SHELLRC_SOURCED:-}" && return
+
+main() {
+	# Do nothing if running on a non-interactive shell
+	_shellrc_is_interactive || return
+	_shellrc_debug_echo "main()"
+	# Prevent sourcing more than once per session
+	_shellrc_verbose_echo "version $(_shellrc_get_version)"
+	# Set options and store them
+	set -e # Exit on error
+	set -u # Exit on unbound variable
+	set -f # Disable filname expansion (*,?,[...])
+	_SHELLRC_OPTIONS=$-
+	FUNCTIONS=""
+	while IFS= read -r line; do
+		FUNCTIONS=$(printf "$line\n%s" "$FUNCTIONS")
+		if test "$SHELLRC_DEBUG" = true; then
+			printf "\n\nTime for: %s\n" "$line"
+			time "$line"
+		else
+			"$line"
+		fi
+	done <<-'EOF'
+		configure_locale
+		configure_bash
+		configure_zsh
+		configure_PS1
+		configure_editor
+		configure_PATH
+		configure_shell
+		configure_darwin
+		configure_posix
+		configure_linux
+		configure_ls
+		configure_man
+		configure_grep
+		configure_ssh
+		configure_readline
+		configure_vim
+		configure_emacs
+		configure_nano
+		configure_npm
+		configure_git
+		configure_wget
+		configure_fd
+		configure_fzf
+		configure_zoxide
+		configure_perlbrew
+		configure_sdkman
+		configure_pyenv
+		configure_python
+		configure_direnv
+		configure_broot
+		configure_ncdu
+		configure_automysqlbackup
+		configure_goaccess
+		configure_composer
+		configure_shdotenv
+		configure_aliases
+		configure_prompt
+		make_utility_functions
+		shellrc_autoupdate
+	EOF
+	# Unset functions
+	while IFS= read -r line || test -n "$line"; do
+		unset -f "$line" >/dev/null 2>&1
+	done <<-EOF
+		$FUNCTIONS
+	EOF
+	unset FUNCTIONS
+	SHELLRC_SOURCED=true
+	set +e # Do not exit on error
+	set +u # Do not exit on unbound variable
+	set +f # Enable filename expansion (*,?,[...])
+}
+
+shellrc() {
+	if test -z "${1+x}"; then
+		_shellrc_help
+		return
+	fi
+	while test $# -gt 0; do
+		case $1 in
+		update)
+			_shellrc_update
+			shift
+			;;
+		revert | restore)
+			_shellrc_revert
+			shift
+			;;
+		-h | --help | help)
+			_shellrc_help
+			shift
+			;;
+		--version | version)
+			_shellrc_get_version
+			shift
+			;;
+		-*)
+			echo "Unknown option $1"
+			;;
+		*)
+			# POSITIONAL_ARGS+=("$1") # save positional arg
+			shift
+			;;
+		esac
+	done
+}
+
+_shellrc_get_version() {
+	date -r ~/.shellrc -u "+%FT%TZ"
+}
+
+_shellrc_restore_options() {
+	case "${_SHELLRC_OPTIONS:-}" in
+	*e*) set -e ;;
+	*f*) set -f ;;
+	*u*) set -u ;;
+	esac
+}
+
+_shellrc_is_interactive() {
+	case $- in
+	*i*) true ;;
+	*) false ;;
+	esac
+}
+
+_shellrc_is_login() {
+	case $- in
+	*l*) true ;;
+	*) false ;;
+	esac
+}
+
+_shellrc_config() {
+	test -n "${SHELLRC_CONFIG_DIR:-}" && return
+	mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
+	SHELLRC_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
+}
+
+_shellrc_todo() {
+	echo '# TODO'
+}
+
+_shellrc_get_lastmod_elapsed_s() {
+	if test -n "$1"; then
+		FILE=$1
+	else
+		FILE=$(_shellrc_get_path)
+	fi
+	NOW=$(date '+%s')
+	LASTMOD="$(date -r "$FILE" "+%s" 2>/dev/null || echo "$NOW")"
+	DIFF=$((NOW - LASTMOD))
+	echo $DIFF
+	unset FILE NOW LASTMOD DIFF
+}
+
+_shellrc_get_path() {
+	if test -z "${SHELLRC_FILE+x}"; then
+		if _shellrc_command perl; then
+			SHELLRC_FILE=$(perl -XMCwd -le 'print Cwd::abs_path(shift)' ~/.shellrc)
+		elif _shellrc_command realpath; then
+			SHELLRC_FILE=$(realpath ~/.shellrc)
+		elif _shellrc_command readlink; then
+			SHELLRC_FILE=$(readlink -f ~/.shellrc)
+		else
+			>&2 _shellrc_verbose_echo "_shellrc_get_path(): Unable to resolve .shellrc path"
+			false
+		fi
+	fi
+	printf "%s" "$SHELLRC_FILE"
+}
+
+_shellrc_help() {
+	{ SHELLRC_HELP=$(cat); } <<-EOF
+		.shellrc version $(_shellrc_get_version)
+		Commands:
+		  shellrc update  # Update .shellrc file from curl
+		  shellrc revert  # Revert to last snapshot
+
+		Recommendations:
+		  If using Bash >= 4 on macOS (3.2 is default):
+		  $ brew uninstall bash-completion
+		  $ brew install bash-completion@2
+
+		Recommended tools:
+		  fd      - easier, faster find
+		  fzf     - fuzzy search on STDIN
+		  zoxide  - bookmark paths
+		  ripgrep - recursive directory regex search
+	EOF
+	printf "%s\n" "$SHELLRC_HELP"
+	unset SHELLRC_HELP
+}
+
+_shellrc_update() {
+	_shellrc_command curl || return 0
+	_shellrc_verbose_echo "checking for update"
+	F="$HOME/.shellrc-tmp"
+	_shellrc_config
+	touch "$F"
+	# Find real .shellrc file if symlinked
+	SHELLRC_FILE=$(_shellrc_get_path)
+	SHELLRC_SNAPSHOT_DIR=$SHELLRC_CONFIG_DIR/snapshots
+	URL="https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc?$(date +%s)"
+	if ! curl --connect-timeout 5 -H 'Cache-Control: no-cache' -s -L -o "$F" "$URL"; then
+		_shellrc_verbose_echo "... curl error"
+		rm "$F" 2>/dev/null
+		unset F TS URL SHELLRC_SNAPSHOT_DIR
+		return 0
+	fi
+	_shellrc_config
+	touch "$SHELLRC_CONFIG_DIR/last-check"
+	if ! comm "$SHELLRC_FILE" "$F" >/dev/null 2>&1; then
+		_shellrc_verbose_echo "updating $SHELLRC_FILE"
+		TS=$(date -u +"%Y-%m-%dT%H%M%S")
+		mkdir -p "$SHELLRC_SNAPSHOT_DIR"
+		mv "$SHELLRC_FILE" "$SHELLRC_SNAPSHOT_DIR/$(basename "$SHELLRC_FILE")-$TS" >/dev/null 2>&1
+		cat "$F" >"$SHELLRC_FILE"
+		rm "$F" 2>/dev/null
+		export SHELLRC_SOURCED=false
+		. "$SHELLRC_FILE"
+	else
+		_shellrc_verbose_echo "no updates available"
+		rm "$F" 2>/dev/null
+	fi
+	unset F TS URL SHELLRC_SNAPSHOT_DIR
+}
+
+_shellrc_revert() {
+	_shellrc_config
+	SHELLRC_FILE=$(_shellrc_get_path)
+	SHELLRC_SNAPSHOT_DIR=$SHELLRC_CONFIG_DIR/snapshots
+	SHELLRC_SNAPSHOT=$(find "$SHELLRC_SNAPSHOT_DIR" -name '.shellrc-*' 2>/dev/null | tail -n 1)
+	test "${SHELLRC_SNAPSHOT:-}" || return
+	if mv -f "$SHELLRC_SNAPSHOT" "$SHELLRC_FILE"; then
+		echo "... restored $SHELLRC_SNAPSHOT"
+	fi
+	unset SHELLRC_SNAPSHOT_DIR SHELLRC_SNAPSHOT
+}
+
+shellrc_autoupdate() {
+	_shellrc_config
+	test "$SHELLRC_UPDATECHECK" = false && return
+	if ! test -f "$SHELLRC_CONFIG_DIR/last-check"; then
+		touch "$SHELLRC_CONFIG_DIR/last-check"
+	fi
+	if test "$(_shellrc_get_lastmod_elapsed_s "$SHELLRC_CONFIG_DIR/last-check")" -gt 86400; then
+		_shellrc_update
+	fi
+}
+
+# ******************************************************************************
+# Utility functions
+# _ means it should not be unset
+# ******************************************************************************
+
+_shellrc_debug_echo() {
+	test "$SHELLRC_DEBUG" != true && return
+	echo "$1"
+}
+
+_shellrc_verbose_echo() {
+	_shellrc_set_format_tokens
+	if test "$SHELLRC_VERBOSE" = true; then
+		echo "${_s_dim}${_s_bold}.shellrc - ${_s_reset}${_s_dim}${1:-}${_s_reset}"
+	fi
+}
+
+_shellrc_command() {
+	test "$#" -eq 1 || return
+	avail=$(command -v "$1" 2>/dev/null || true)
+	test "${avail:-}" || return
+	case "$avail" in
+	*/c/* | */cygdrive/* | C:\\*) false ;;
+	*) ;;
+	esac
+}
+
+_shellrc_is_darwin() {
+	uname | awk '!/[Dd]arwin/{exit 1}'
+}
+
+_shellrc_is_linux() {
+	uname | awk '!/[Ll]inux/{exit 1}'
+}
+
+_shellrc_is_windows() {
+	uname | awk '{print tolower($0)}' | awk '!/msys|cygwin|mingw/{exit 1}'
+}
+
+_shellrc_set_BREW_PREFIX() {
+	# +x will give 'x' if the variable exists, even if empty.
+	if test -z ${BREW_PREFIX+x}; then
+		if _shellrc_command brew; then
+			BREW_PREFIX=$(brew --prefix)
+		else
+			BREW_PREFIX=''
+		fi
+	fi
+}
+
+_shellrc_is_bash() {
+	test "${BASH_VERSION:-}"
+}
+
+_shellrc_is_zsh() {
+	test "${ZSH_VERSION:-}"
+}
+
+_shellrc_is_xdg() {
+	test \
+		"${XDG_CONFIG_HOME:-}" -o \
+		"${XDG_CACHE_HOME:-}" -o \
+		"${XDG_DATA_HOME:-}" -o \
+		"${XDG_STATE_HOME:-}" -o \
+		"${XDG_RUNTIME_DIR:-}"
+}
+
+_shellrc_is_smart_terminal() {
+	case "$TERM" in
+	"dumb")
+		false
+		;;
+	xterm* | rxvt* | eterm* | screen*)
+		;;
+	*)
+		false
+		;;
+	esac
+}
+
+_shellrc_command_has_option() {
+	test "$#" -eq 2 || return
+	_shellrc_command "$1" || return
+	HELPSTACK=$(eval "echo \"\${_options_cache_$1:-}\"")
+	if test -n "$HELPSTACK"; then
+		: # noop if $HELPSTACK is non-empty
+	else
+		if test -z "$HELPSTACK"; then
+			HELPSTACK=$(printf "%s\n%s" "$($1 --help 2>/dev/null)" "$HELPSTACK")
+		fi
+		if test -z "$HELPSTACK"; then
+			HELPSTACK=$(printf "%s\n%s" "$(man "$1" 2>/dev/null)" "$HELPSTACK")
+		fi
+		if test -z "$HELPSTACK"; then
+			HELPSTACK=$(printf "%s\n%s" "$(info "$1" 2>/dev/null)" "$HELPSTACK")
+		fi
+	fi
+	test "$HELPSTACK:-" || return
+	eval "_options_cache_$1"=\$HELPSTACK
+	case "$HELPSTACK" in
+	*"$2"*)
+		unset HELPSTACK
+		;;
+	*)
+		unset HELPSTACK
+		false
+		;;
+	esac
+}
+
+_shellrc_upsert_section() {
+	_shellrc_debug_echo "_shellrc_upsert_section()"
+	if test "$#" -lt 2; then
+		echo "_shellrc_upsert_section() missing args"
+		false; return
+	fi
+	_SECTION=$1
+	_FILE=$2
+	_APPEND=$3
+	_LASTMOD="$(date -r "$_FILE" "+%s" 2>/dev/null || echo 0)"
+	if ! test -f "$_FILE"; then
+		mkdir -p "$(dirname "$_FILE")" && touch "$_FILE"
+	fi
+	# Read current from disk
+	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	# Create if no SHELLRC section is found
+	if test -z "$_SECTION_READ"; then
+		_shellrc_debug_echo "... creating SHELLRC section in $_FILE."
+		if test "$_APPEND" = 'append'; then
+			printf '%s\n%s\n' "$(cat "$_FILE")" "$_SECTION" >"$_FILE"
+		else
+			printf '%s\n%s\n' "$_SECTION" "$(cat "$_FILE")" >"$_FILE"
+		fi
+	# Abort if: SHELLRC section is unchanged
+	elif test "$_SECTION_READ" = "$_SECTION"; then
+		_shellrc_debug_echo "... SHELLRC section in $_FILE is unchanged."
+	# Abort if: destination is newer than .shellrc
+	elif test "$_LASTMOD" -gt "$(date -r "$(_shellrc_get_path)" "+%s")"; then
+		_shellrc_debug_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
+	# Update section
+	else
+		_shellrc_debug_echo "... updating SHELLRC section in $_FILE"
+		_TEMPFILE="$(mktemp)"
+		awk '
+			BEGIN { sv=ARGV[1]; delete ARGV[1] }
+			/BEGIN_SHELLRC/ { print sv; section=1; next }
+			/END_SHELLRC/ { section=0; next }
+			section {next}
+			{print}
+		' "$_SECTION" "$_FILE" >"$_TEMPFILE" && mv "$_TEMPFILE" "$_FILE"
+	fi
+	unset _SECTION _SECTION_READ _FILE _APPEND _LASTMOD _TEMPFILE
+}
+
+_shellrc_append_PATH() {
+	test "${1:-}" || return 0
+	case ":${PATH}:" in
+	*:"$1":*)
+	new_path="$(echo "$PATH" | sed "s#:$1:#:#;s#^$1:##;s#:$1\$##")";
+	PATH="$new_path"
+	;;
+	esac
+	if test -d "$1"; then export PATH="$PATH":"$1"; fi
+}
+
+_shellrc_prepend_PATH() {
+	test "${1:-}" || return 0
+	case ":${PATH}:" in
+	*:"$1":*)
+	new_path="$(echo "$PATH" | sed "s#:$1:#:#;s#^$1:##;s#:$1\$##")";
+	PATH="$new_path"
+	;;
+	esac
+	if test -d "$1"; then export PATH="$1":"$PATH"; fi
+}
+
+_shellrc_set_format_tokens() {
+	# https://misc.flogisoft.com/bash/tip_colors_and_formatting
+	test "${_s_bold:-}" && return
+	_s_reset=$(printf -- '\e[0m')
+	_s_bold=$(printf -- '\e[1m')
+	_s_dim=$(printf -- '\e[2m')
+	_s_underline=$(printf -- '\e[4m')
+	_s_bullet=$(printf -- '\xe2\x97\x8f')
+	_s_user='\u'
+	_s_host='\h'
+	_s_directory='\w'
+	_s_newline=$(printf -- '\n  ')
+	if _shellrc_is_zsh; then
+		_s_user='%n'
+		_s_host='%m'
+		_s_directory='%~'
+	fi
+}
+
+# shellcheck disable=SC2034
+_shellrc_set_PS1() {
+	_shellrc_debug_echo "_shellrc_set_PS1()"
+	_shellrc_set_format_tokens
+	if ! _shellrc_is_smart_terminal; then
+		PS1='\u@\h > '
+		PROMPT='%n@%m > '
+		return 0
+	fi
+	PS1="\
+${_s_reset}\
+${_s_bold}\
+${_s_user}\
+${_s_dim}\
+@\
+${_s_host}:\
+${_s_reset}\
+${_s_directory} \
+${SHELLRC_PROMPT_GIT:-}\
+${SHELLRC_PROMPT_PYTHON:-}\
+${_s_dim}\
+${_s_bullet}\
+${_s_reset}\
+${_s_newline}\
+"
+	PROMPT="$PS1"
+}
+
+# ******************************************************************************
+# Configurations
+# ******************************************************************************
+
+configure_locale() {
+	_shellrc_debug_echo "configure_locale()"
+	# macOS only recognises "UTF-8", not "utf8"
+	if ! locale -a | grep -ixq 'en_us.utf-\?8'; then
+		printf "... UTF8 locale not ready.\n"
+		printf "... Please run:\n"
+		printf "$ sudo sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen\n"
+		printf "$ sudo locale-gen \"en_US.UTF-8\"\n"
+		return 0
+	fi
+	export LC_ALL=en_US.UTF-8
+	export LANG=en_US.UTF-8
+}
+
+configure_PS1() {
+	_shellrc_debug_echo "configure_PS1()"
+	_shellrc_set_PS1
+}
+
+# shellcheck disable=SC2317
+configure_prompt() {
+	_shellrc_debug_echo "configure_prompt()"
+	_shellrc_prompt_commands() {
+		_shellrc_is_bash && history -a # Make history available all sessions
+		venv_auto 2>/dev/null || true
+		git_prompt 2>/dev/null || true
+		_shellrc_set_PS1
+	}
+	PROMPT_COMMAND="_shellrc_prompt_commands;${PROMPT_COMMAND:-}"
+	if _shellrc_is_zsh; then
+		prmptcmd() { eval "$PROMPT_COMMAND"; }
+		# shellcheck disable=SC2034,SC3030
+		precmd_functions=(prmptcmd)
+	fi
+}
+
+configure_PATH() {
+	_shellrc_debug_echo "configure_PATH()"
+	set +f
+	# Homebrew
+	_shellrc_set_BREW_PREFIX
+	if test "$BREW_PREFIX"; then
+		_shellrc_prepend_PATH "$BREW_PREFIX/bin"
+		_shellrc_prepend_PATH "$BREW_PREFIX/sbin"
+		# if test -d "$BREW_PREFIX/opt"; then
+		# 	for D in "$BREW_PREFIX"/opt/*/; do
+		# 		_shellrc_append_PATH "${D}bin"
+		# 		_shellrc_append_PATH "${D}sbin"
+		# 	done
+		# fi
+		# _shellrc_append_PATH "$BREW_PREFIX/opt/python/libexec/bin"
+		unset D
+	fi
+	# ~/bin/
+	_shellrc_append_PATH "$HOME/bin"
+	if test -d "$HOME/bin"; then
+		for D in "$HOME"/bin/*/; do
+			case "${D%/}" in
+			*'/lib') continue ;;
+			*'/share') continue ;;
+			*'/state') continue ;;
+			esac
+			_shellrc_append_PATH "${D}"
+			_shellrc_append_PATH "${D}/bin"
+			_shellrc_append_PATH "${D}/sbin"
+		done
+	fi
+	# ~/.local/
+	_shellrc_append_PATH "$HOME/.local"
+	if test -d "$HOME/.local"; then
+		for D in "$HOME"/.local/*/; do
+			case "${D%/}" in
+			*'/lib') continue ;;
+			*'/share') continue ;;
+			*'/pipx') continue ;;
+			*'/state') continue ;;
+			esac
+			_shellrc_append_PATH "${D}"
+			_shellrc_append_PATH "${D}/bin"
+			_shellrc_append_PATH "${D}/sbin"
+		done
+	fi
+	# ~/local/
+	_shellrc_append_PATH "$HOME/local"
+	if test -d "$HOME/local"; then
+		for D in "$HOME"/local/*/; do
+			case "${D%/}" in
+			*'/lib') continue ;;
+			*'/share') continue ;;
+			*'/state') continue ;;
+			esac
+			_shellrc_append_PATH "${D}"
+			_shellrc_append_PATH "${D}/bin"
+			_shellrc_append_PATH "${D}/sbin"
+		done
+	fi
+	unset D
+	# Mac apps
+	_shellrc_append_PATH "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
+	_shellrc_append_PATH "/Applications/Sublime Merge.app/Contents/SharedSupport/bin"
+	_shellrc_append_PATH "/Applications/Tower.app/Contents/MacOS"
+	_shellrc_append_PATH "/Applications/VMware Fusion.app/Contents/Library"
+	_shellrc_append_PATH "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
+	_shellrc_append_PATH "/Applications/MAMP/Library/bin"
+	_shellrc_append_PATH "/Applications/MAMP/Library/sbin"
+	# Windows
+	_shellrc_append_PATH "$HOME/AppData/Local/Programs/Microsoft VS Code/bin"
+	_shellrc_append_PATH "${PROGRAMFILES:-}/Sublime Text"
+	# Cygwin
+	_shellrc_append_PATH "/cygdrive/c/cygwin"
+	_shellrc_append_PATH "/cygdrive/c/tools/cygwin"
+	_shellrc_append_PATH "/cygdrive/c/Users/$(whoami 2>/dev/null)/scoop/apps/cygwin/current/"
+	_shellrc_append_PATH "/cygdrive/c/ProgramData/scoop/apps/cygwin/current/"
+	# Extra
+	_shellrc_append_PATH "$HOME/.cargo/bin"
+	_shellrc_append_PATH "$HOME/go/bin"
+	_shellrc_append_PATH "$HOME/bin/automysqlbackup-v3.0_rc6"
+	_shellrc_append_PATH "$HOME/.bun"
+	_shellrc_restore_options
+}
+
+configure_posix() {
+	if _shellrc_is_bash || _shellrc_is_zsh; then
+		return 0
+	fi
+	_shellrc_debug_echo "configure_posix()"
+	CONFIGFILE=$HOME/.profile
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		test -f ~/.shellrc && . ~/.shellrc
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	unset CONFIG CONFIGFILE
+}
+
+configure_bash() {
+	_shellrc_is_bash || return 0
+	_shellrc_debug_echo "configure_bash()"
+
+	# Create init files
+	if test "$(printf %.1s "$BASH_VERSION")" -lt 4; then
+		echo "You are using a very old version of Bash: $BASH_VERSION"
+		if _shellrc_command brew; then
+			echo "Please run:"
+			echo "$ brew install bash"
+			echo "$ enable_homebrew_bash"
+		elif _shellrc_is_darwin; then
+			echo "$ Please install \"Homebrew\" from https://brew.sh"
+		else
+			echo "Please update Bash"
+		fi
+	fi
+	CONFIGFILE=$HOME/.bash_profile
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		test -f /etc/bashrc && . /etc/bashrc
+		test -f ~/.shellrc && . ~/.shellrc
+		# END_SHELLRC
+	EOF
+	test -f "$CONFIGFILE" || touch "$CONFIGFILE"
+	if ! grep -q 'BEGIN_SHELLRC' "$CONFIGFILE" 2>/dev/null; then
+		F=$(mktemp)
+		awk '
+			/SHELLRC_UPDATECHECK/ { ok=1 }
+			!ok && /BEGIN_SHELLRC/ {
+				print "export SHELLRC_UPDATECHECK=true";
+				ok=1
+			} 1' "$CONFIGFILE" >"$F" && mv "$F" "$CONFIGFILE"
+		unset F
+	fi
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	CONFIGFILE=$HOME/.bashrc
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		test -f /etc/bashrc && . /etc/bashrc
+		test -f ~/.shellrc && . ~/.shellrc
+		# END_SHELLRC
+	EOF
+	test -f "$CONFIGFILE" || touch "$CONFIGFILE"
+	if ! grep -q 'BEGIN_SHELLRC' "$CONFIGFILE" 2>/dev/null; then
+		F=$(mktemp)
+		awk '
+			/SHELLRC_UPDATECHECK/ { ok=1 }
+			!ok && /BEGIN_SHELLRC/ {
+				print "export SHELLRC_UPDATECHECK=false";
+				ok=1
+			} 1' "$CONFIGFILE" >"$F" && mv "$F" "$CONFIGFILE"
+		unset F
+	fi
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+
+	# shellcheck disable=SC3044
+	set_bash_options() {
+		_shellrc_debug_echo "set_bash_options()"
+		HISTIGNORE="&:cd ~:~:cd ..:..:clear:history:[bf]g:reboot:shutdown:exit:date:pwd"
+		HISTCONTROL="erasedups:ignorespace"
+		HISTSIZE=32768
+		HISTFILESIZE=$HISTSIZE
+		SAVEHIST=$HISTSIZE
+		HISTFILE="${HOME}/.history"
+		PROMPT_DIRTRIM=2                    # Trim long paths in the prompt (Bash >= 4)
+		CDPATH=".:~/Work:~/Sources:/~Repos" # where cd looks for targets
+		# Use standard ISO 8601 timestamp
+		# %F equivalent to %Y-%m-%d
+		# %T equivalent to %H:%M:%S (24-hours format)
+		# HISTTIMEFORMAT='%F %T '
+
+		# set -o noclobber # No overwrite on stdout redirection; Use `>|` to overwrite
+
+		# https://www.gnu.org/software/bash/manual/html_node/The-Shopt-Builtin.html
+		shopt -s extglob 2>/dev/null || true      # Support extended globbing
+		shopt -s globstar 2>/dev/null || true     # ** to recurse all directories)
+		shopt -s nocaseglob 2>/dev/null || true   # Case-insensitive globbing
+		shopt -s histappend 2>/dev/null || true   # Append to the history file, no overwrite
+		shopt -s cmdhist 2>/dev/null || true      # Save multi-line commands as one command
+		shopt -s autocd 2>/dev/null || true       # `cd` to directory names automatically
+		shopt -s dirspell 2>/dev/null || true     # Correct tab-completion spelling
+		shopt -s cdspell 2>/dev/null || true      # Correct `cd` args spelling
+		# shopt -s cdable_vars 2>/dev/null || true  # cd to vars containing a path
+		shopt -s checkwinsize 2>/dev/null || true # Update window size after every command
+	}
+
+	# shellcheck disable=SC3044
+	load_bash_completion() {
+		_shellrc_debug_echo "load_bash_completion()"
+		_shellrc_set_BREW_PREFIX
+		# Possible bash-completion init scripts
+		while IFS= read -r line; do
+			if test -f "$line"; then
+				_shellrc_debug_echo "... $line"
+				# this alias clashes with bash-completion
+				unalias sudo >/dev/null 2>&1 || true
+				. "$line"
+				break
+			fi
+		done <<-EOF
+			/etc/profile.d/bash_completion.sh
+			/etc/bash_completion
+			/sw/etc/bash_completion
+			$BREW_PREFIX/etc/profile.d/bash_completion.sh
+			$BREW_PREFIX/etc/bash_completion
+		EOF
+		complete -cf sudo
+		unset P
+	}
+	set_bash_options
+	load_bash_completion
+	unset CONFIG CONFIGFILE
+	unset -f set_bash_options load_bash_completion
+}
+
+configure_darwin() {
+	_shellrc_is_darwin || return 0
+	_shellrc_debug_echo "configure_darwin()"
+	export SHELL_SESSIONS_DISABLE=1
+	export SHELL_SESSIONS_HISTORY=0
+	export BASH_SILENCE_DEPRECATION_WARNING=1
+}
+
+configure_linux() {
+	_shellrc_is_linux || return 0
+	_shellrc_debug_echo "configure_linux()"
+}
+
+configure_shell() {
+	_shellrc_debug_echo "configure_shell()"
+	test -f "$HOME/.hushlogin" || touch "$HOME/.hushlogin"
+	MAILCHECK=0
+	export bin_path=~/local # for direnv install script on linux
+}
+
+configure_man() {
+	export MANPAGER="less -X"
+}
+
+configure_grep() {
+	alias grep="grep --color=auto"
+}
+
+# shellcheck disable=SC2034
+configure_zsh() {
+	_shellrc_is_zsh || return 0
+	_shellrc_debug_echo "configure_zsh()"
+	# Create init files
+	CONFIGFILE=$HOME/.zshrc
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		test -f ~/.shellrc && . ~/.shellrc
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	HISTORY_IGNORE="(&|cd ~|~|cd ..|..|clear|history|[bf]g|reboot|shutdown|exit|date|pwd)"
+	HISTFILE="${HOME}/.history"
+	HISTSIZE=50000
+	SAVEHIST=10000
+	ZSH_COMPDUMP="$HOME/.zcompdump-$(hostname -s)"
+	PROMPT_EOL_MARK=''
+	# https://zsh.sourceforge.io/Doc/Release/Options.html
+	setopt nullglob # Return empty for non-matching globs
+	# setopt extended_history       # record timestamp of command in HISTFILE
+	setopt hist_expire_dups_first # delete duplicates first when HISTFILE size exceeds HISTSIZE
+	setopt hist_ignore_all_dups
+	setopt hist_ignore_space  # ignore commands that start with space
+	setopt hist_verify        # show command with history expansion to user before running it
+	setopt inc_append_history # add commands to HISTFILE in order of execution
+	# setopt share_history          # share command history data
+	setopt hash_list_all
+	setopt correct
+	setopt complete_in_word # tab completion in the middle of a word
+	# unsetopt extended_history
+	configure_zshell_line_editor() {
+		bindkey "\e[A" history-search-backward
+		bindkey "\e[B" history-search-forward
+		bindkey "\eOA" history-search-backward
+		bindkey "\eOB" history-search-forward
+	}
+	load_zsh_completion() {
+		# See: https://zsh.sourceforge.io/Doc/Release/Completion-System.html#index-matcher_002dlist_002c-completion-style
+		autoload -Uz compinit && compinit
+		# autoload -U +X compinit && compinit
+		# zstyle ':completion:*' matcher-list 'r:|?=**'
+		zstyle ':completion:*' matcher-list \
+			'm:{[:lower:]}={[:upper:]}' \
+			'+r:|[._-]=* r:|=*' \
+			'+l:|=*'
+		autoload bashcompinit && bashcompinit
+	}
+	configure_zshell_line_editor
+	load_zsh_completion
+	unset CONFIG CONFIGFILE
+	unset -f configure_zshell_line_editor load_zsh_completion
+}
+
+configure_fzf() {
+	_shellrc_command fzf || return 0
+	_shellrc_debug_echo "configure_fzf()"
+	if _shellrc_is_bash; then
+		eval "$(fzf --bash 2>/dev/null)"
+	elif _shellrc_is_zsh; then
+		eval "$(fzf --zsh 2>/dev/null)"
+	fi
+	if _shellrc_command fd; then
+		export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'
+		export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+	fi
+}
+
+configure_fd() {
+	_shellrc_command fd || return 0
+	_shellrc_debug_echo "configure_fd()"
+	export FZF_DEFAULT_COMMAND='fd --type file'
+	export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+}
+
+configure_zoxide() {
+	_shellrc_command zoxide || return 0
+	_shellrc_debug_echo "configure_zoxide()"
+	if _shellrc_is_bash; then
+		eval "$(zoxide init bash)"
+	elif _shellrc_is_zsh; then
+		eval "$(zoxide init zsh)"
+	else
+		eval "$(zoxide init posix --hook prompt)"
+	fi
+}
+
+configure_perlbrew() {
+	# https://perlbrew.pl/Installation.html
+	while IFS= read -r line; do
+		if test -d "$line"; then
+			PB_ROOT=$line
+			break
+		fi
+	done <<-EOF
+		$HOME/perl5/perlbrew
+		$HOME/.local/perlbrew
+		$HOME/local/perlbrew
+	EOF
+	test -z "${PB_ROOT:+x}" && return
+	_shellrc_debug_echo "configure_perlbrew()"
+	set +e +u
+	_shellrc_is_bash && . "$PB_ROOT/etc/bashrc"
+	_shellrc_is_zsh && . "$PB_ROOT/etc/bashrc"
+	# In case of old settings
+	if test "${PERLBREW_HOME:-}" && test "${PERLBREW_ROOT:-}" != "$PB_ROOT"; then
+		rm -rf "$PERLBREW_HOME/init"
+		export PERLBREW_ROOT="$PB_ROOT"
+		_shellrc_is_bash && . "$PB_ROOT/etc/bashrc"
+		_shellrc_is_zsh && . "$PB_ROOT/etc/bashrc"
+	fi
+	_shellrc_restore_options
+	unset PB_ROOT
+}
+
+configure_pyenv() {
+	_shellrc_is_windows && return
+	test -d "$HOME/.pyenv/bin" || _shellrc_command pyenv || return 0
+	_shellrc_debug_echo "configure_pyenv()"
+	_shellrc_config
+	export PYENV_ROOT="$HOME/.pyenv"
+	_shellrc_append_PATH "$PYENV_ROOT/bin"
+	BOOTSTRAP_FILE="$SHELLRC_CONFIG_DIR/bootstrap-pyenv"
+	if test ! -f "$BOOTSTRAP_FILE"; then
+		pyenv init - >"$BOOTSTRAP_FILE"
+	elif test "$(_shellrc_get_lastmod_elapsed_s "$BOOTSTRAP_FILE")" -gt 604800; then
+		pyenv init - >"$BOOTSTRAP_FILE"
+	fi
+	. "$BOOTSTRAP_FILE"
+	_shellrc_command brew && alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
+	# Plugins
+	eval "$(pyenv virtualenv-init - >/dev/null 2>&1)" || true
+	unset BOOTSTRAP_FILE GENERATED
+}
+
+configure_direnv() {
+	_shellrc_command direnv || return 0
+	_shellrc_debug_echo "configure_direnv()"
+	_shellrc_is_bash && eval "$(direnv hook bash || true)" && return
+	_shellrc_is_zsh && eval "$(direnv hook bash || true)" && return
+}
+
+configure_shdotenv() {
+	# https://github.com/ko1nksm/shdotenv
+	_shellrc_command shdotenv || return 0
+	_shellrc_debug_echo "configure_shdorenv()"
+}
+
+configure_ncdu() {
+	_shellrc_command ncdu || return 0
+	_shellrc_debug_echo "configure_ncdu()"
+	CONFIGFILE=$HOME/.config/ncdu/config
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		--color off
+		# Always enable extended mode
+		-e
+		# Disable file deletion
+		--disable-delete
+		# Exclude .git directories
+		--exclude .git
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	unset CONFIG CONFIGFILE
+}
+
+configure_aliases() {
+	_shellrc_debug_echo "configure_aliases()"
+	alias cd='>/dev/null cd'
+	if ! _shellrc_command _get_comp_words_by_ref; then
+		alias sudo='sudo ' # Enable sudo <alias>, only if bash-completion is not loaded.
+	fi
+	alias lsdirs="ls -la \${LS_COLOR_FLAG} | grep '^d'" # List only directories
+	_shellrc_command nano && alias nano='nano --mouse'
+	_shellrc_command stat && _shellrc_is_linux && alias perms="stat -c '%a'"
+	_shellrc_is_darwin && alias perms="stat -f '%A'"
+	_shellrc_command nano && alias crontab="EDITOR=nano crontab" # Reset EDITOR for crontab
+	_shellrc_command dscacheutil && alias flushdns="dscacheutil -flushcache && killall -HUP mDNSResponder"
+	_shellrc_command dig && alias publicip="dig +short myip.opendns.com @resolver1.opendns.com"
+	if ! _shellrc_command pgrep; then
+		# shellcheck disable=SC2317,SC2009
+		psgrep() {
+			ps aux | grep -Ev grep | grep "$1" | awk '{print $2}'
+		}
+	fi
+	# shellcheck disable=SC2142
+	_shellrc_command ip && alias localip="ip route get 1 | awk '{print \$7;exit}'"
+	_shellrc_command ipconfig && alias localip="ipconfig getifaddr en0"
+	alias ips="ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'"
+	# For example, to list all directories that contain a certain file:
+	#   find . -name .gitattributes | map dirname
+	alias map="xargs -n1"
+	_shellrc_command htop && alias htopme='htop --user="$(whoami)"'
+	# shellcheck disable=SC2154
+	alias ssh-list-keys='for keyfile in ~/.ssh/*.pub; do ssh-keygen -l -f "$keyfile"; done | uniq'
+	alias ssh-list-config='ssh -G *'
+	alias ssh-pubkey-ed='cat ~/.ssh/id_ed25519.pub'
+	alias ssh-pubkey-rsa='cat ~/.ssh/id_rsa.pub'
+	# macOS fallbacks
+	! _shellrc_command md5sum && alias md5sum="md5"
+	! _shellrc_command sha1sum && alias sha1sum="shasum"
+	_shellrc_is_darwin && alias dsstore="find . -type f -name '*.DS_Store' -ls -delete"
+	# Docker container aliases
+	if _shellrc_command docker; then
+		alias photostructure="docker exec -u photostructure -it photostructure bash"
+	fi
+}
+
+# shellcheck disable=SC2034
+configure_ls() {
+	_shellrc_debug_echo "configure_ls()"
+	if _shellrc_is_darwin; then
+		# 22 char str
+		LSCOLORS='Xxxxxxxxxxxxxxxxxxxxxx'
+		alias ls="command ls -F"
+	else
+		LS_COLORS='di=01'
+		alias ls="command ls -F"
+	fi
+}
+
+configure_nano() {
+	_shellrc_command nano || return 0
+	_shellrc_debug_echo "configure_nano()"
+	_shellrc_set_BREW_PREFIX
+	if test "$BREW_PREFIX" && test -d "$BREW_PREFIX/share/nanorc"; then
+		NANORC_DIR="$BREW_PREFIX/share/nanorc"
+	elif test "$BREW_PREFIX"; then
+		echo "Run:"
+		echo "$ brew install nano nanorc"
+		false; return
+	elif test -d ~/.nano/nanorc; then
+		NANORC_DIR=~/.nano/nanorc
+	elif test -d /usr/share/nano; then
+		NANORC_DIR="/usr/share/nano"
+	elif test -d /usr/share/nano-syntax-highlighting; then
+		NANORC_DIR="/usr/share/nano-syntax-highlighting"
+	elif test -d /etc/nanorc; then
+		NANORC_DIR="/etc/nanorc"
+	else
+		false; return
+	fi
+	make_nanorc_paths() {
+		find -L "$NANORC_DIR" -maxdepth 1 -type f -print0 | xargs -0 printf 'include "%s"\n'
+	}
+	maybe_set() {
+		_shellrc_command_has_option nano "$1" && echo "set $1"
+	}
+	_shellrc_command_has_option nano --dummy-option || true
+	CONFIGFILE=~/.nanorc
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+
+		# set nohelp          # Disable the help information (CTRL+G to view the help screen).
+		set softwrap        # Enable softwrap of lines.
+		set tabsize 4       # Sets tab-to-spaces size to 4.
+		set tabstospaces    # Converts TAB key press to spaces.
+		set speller "aspell -x -c"         # Sets what spelling utility to use.
+		set casesensitive   # Case insensitive search.
+		set historylog      # Save the last 100 history searches for later use.
+		set autoindent      # A new line will have the same number of leading spaces as the previous one.
+		$(maybe_set atblanks) # wrap line at blanks.
+		$(maybe_set cutfromcursor) # CTRL+K cuts from cursor position to end of line.
+		$(maybe_set constantshow) # Displays useful information e.g. line number and position in the bottom bar.
+		$(maybe_set linenumbers) # Lines are numbered.
+		$(maybe_set positionlog) # Saves the cursor position between editing sessions.
+		$(maybe_set zap) # Allows you to highlight text (CTRL+SHIFT+ARROW) and delete it with backspace.
+		$(maybe_set indicator) # Displays a scroll bar on the right that shows the position and size of the current view port.
+		$(maybe_set minibar) # Displays file name and other information in the bottom bar. Removes top bar.
+
+		# https://stackoverflow.com/a/74008963
+		bind ^Z suspend main
+
+		# Enables the syntax highlighting.
+		$(make_nanorc_paths)
+
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	unset CONFIG CONFIGFILE NANORC_DIR
+	unset -f make_nanorc_paths maybe_set
+}
+
+configure_vim() {
+	_shellrc_command vim || return 0
+	_shellrc_debug_echo "configure_vim()"
+	mkdir -p ~/.config/vim/runtime
+
+	CONFIGFILE=~/.vimrc
+	{ CONFIG=$(cat); } <<-'EOF'
+		" BEGIN_SHELLRC
+		set runtimepath+=~/.config/vim/runtime
+		try | source ~/.config/vim/runtime/basic.vim | catch | endtry
+		try | source ~/.config/vim/runtime/my_configs.vim | catch | endtry
+		" END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+
+	CONFIGFILE=~/.config/vim/runtime/basic.vim
+	{ CONFIG=$(cat); } <<-'EOF'
+		" BEGIN_SHELLRC
+		" https://github.com/amix/vimrc/blob/master/vimrcs/basic.vim
+		set history=500
+		filetype plugin on
+		filetype indent on
+		set autoread
+		au FocusGained,BufEnter * silent! checktime
+		let mapleader = ","
+		nmap <leader>w :w!<cr>
+		command! W execute 'w !sudo tee % > /dev/null' <bar> edit!
+		set so=7
+		let $LANG='en'
+		set langmenu=en
+		source $VIMRUNTIME/delmenu.vim
+		source $VIMRUNTIME/menu.vim
+		set wildmenu
+		set wildignore=*.o,*~,*.pyc
+		if has("win16") || has("win32")
+			set wildignore+=.git\*,.hg\*,.svn\*
+		else
+			set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.DS_Store
+		endif
+		set ruler
+		set cmdheight=1
+		set hid
+		set backspace=eol,start,indent
+		set whichwrap+=<,>,h,l
+		set ignorecase
+		set smartcase
+		set hlsearch
+		set incsearch
+		set lazyredraw
+		set magic
+		set showmatch
+		set mat=2
+		set noerrorbells
+		set novisualbell
+		set t_vb=
+		set tm=500
+		if has("gui_macvim")
+			autocmd GUIEnter * set vb t_vb=
+		endif
+		set foldcolumn=1
+		syntax enable
+		set regexpengine=0
+		if $COLORTERM == 'gnome-terminal'
+			set t_Co=256
+		endif
+
+		try
+			colorscheme desert
+		catch
+		endtry
+		set background=dark
+		if has("gui_running")
+			set guioptions-=T
+			set guioptions-=e
+			set t_Co=256
+			set guitablabel=%M\ %t
+		endif
+		set encoding=utf8
+		set ffs=unix,dos,mac
+		set nobackup
+		set nowb
+		set noswapfile
+		set expandtab
+		set smarttab
+		set shiftwidth=4
+		set tabstop=4
+		set lbr
+		set tw=500
+		set ai "Auto indent
+		set si "Smart indent
+		set wrap "Wrap lines
+		vnoremap <silent> * :<C-u>call VisualSelection('', '')<CR>/<C-R>=@/<CR><CR>
+		vnoremap <silent> # :<C-u>call VisualSelection('', '')<CR>?<C-R>=@/<CR><CR>
+		map <space> /
+		map <C-space> ?
+		map <silent> <leader><cr> :noh<cr>
+		map <C-j> <C-W>j
+		map <C-k> <C-W>k
+		map <C-h> <C-W>h
+		map <C-l> <C-W>l
+		map <leader>bd :Bclose<cr>:tabclose<cr>gT
+		map <leader>ba :bufdo bd<cr>
+		map <leader>l :bnext<cr>
+		map <leader>h :bprevious<cr>
+		map <leader>tn :tabnew<cr>
+		map <leader>to :tabonly<cr>
+		map <leader>tc :tabclose<cr>
+		map <leader>tm :tabmove
+		map <leader>t<leader> :tabnext<cr>
+		let g:lasttab = 1
+		nmap <leader>tl :exe "tabn ".g:lasttab<CR>
+		au TabLeave * let g:lasttab = tabpagenr()
+		map <leader>te :tabedit <C-r>=escape(expand("%:p:h"), " ")<cr>/
+		map <leader>cd :cd %:p:h<cr>:pwd<cr>
+		try
+		set switchbuf=useopen,usetab,newtab
+		set stal=2
+		catch
+		endtry
+		au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
+		set laststatus=2
+		set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l\ \ Column:\ %c
+		map 0 ^
+		nmap <M-j> mz:m+<cr>`z
+		nmap <M-k> mz:m-2<cr>`z
+		vmap <M-j> :m'>+<cr>`<my`>mzgv`yo`z
+		vmap <M-k> :m'<-2<cr>`>my`<mzgv`yo`z
+		if has("mac") || has("macunix")
+		nmap <D-j> <M-j>
+		nmap <D-k> <M-k>
+		vmap <D-j> <M-j>
+		vmap <D-k> <M-k>
+		endif
+		fun! CleanExtraSpaces()
+			let save_cursor = getpos(".")
+			let old_query = getreg('/')
+			silent! %s/\s\+$//e
+			call setpos('.', save_cursor)
+			call setreg('/', old_query)
+		endfun
+
+		if has("autocmd")
+			autocmd BufWritePre *.txt,*.js,*.py,*.wiki,*.sh,*.coffee :call CleanExtraSpaces()
+		endif
+		map <leader>ss :setlocal spell!<cr>
+		map <leader>sn ]s
+		map <leader>sp [s
+		map <leader>sa zg
+		map <leader>s? z=
+		noremap <Leader>m mmHmt:%s/<C-V><cr>//ge<cr>'tzt'm
+		map <leader>q :e ~/buffer<cr>
+		map <leader>x :e ~/buffer.md<cr>
+		map <leader>pp :setlocal paste!<cr>
+		function! HasPaste()
+			if &paste
+				return 'PASTE MODE  '
+			endif
+			return ''
+		endfunction
+		command! Bclose call <SID>BufcloseCloseIt()
+		function! <SID>BufcloseCloseIt()
+			let l:currentBufNum = bufnr("%")
+			let l:alternateBufNum = bufnr("#")
+			if buflisted(l:alternateBufNum)
+				buffer #
+			else
+				bnext
+			endif
+			if bufnr("%") == l:currentBufNum
+				new
+			endif
+			if buflisted(l:currentBufNum)
+				execute("bdelete! ".l:currentBufNum)
+			endif
+		endfunction
+		function! CmdLine(str)
+			call feedkeys(":" . a:str)
+		endfunction
+		function! VisualSelection(direction, extra_filter) range
+			let l:saved_reg = @"
+			execute "normal! vgvy"
+			let l:pattern = escape(@", "\\/.*'$^~[]")
+			let l:pattern = substitute(l:pattern, "\n$", "", "")
+			if a:direction == 'gv'
+				call CmdLine("Ack '" . l:pattern . "' " )
+			elseif a:direction == 'replace'
+				call CmdLine("%s" . '/'. l:pattern . '/')
+			endif
+			let @/ = l:pattern
+			let @" = l:saved_reg
+		endfunction
+		" END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	unset CONFIG CONFIGFILE CONFIGDIR
+}
+
+configure_emacs() {
+	_shellrc_command emacs || return 0
+	_shellrc_debug_echo "configure_emacs()"
+	CONFIGFILE=$HOME/.emacs.d/init.el
+	{ CONFIG=$(cat); } <<-'EOF'
+		;; BEGIN_SHELLRC
+		(setq inhibit-startup-message t)
+		(setq inhibit-splash-screen t)
+		(transient-mark-mode 1)
+		(require 'package)
+		(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+								("org" . "https://orgmode.org/elpa/")
+								("elpa" . "https://elpa.gnu.org/packages/")))
+		(package-initialize)
+		(unless package-archive-contents
+			(package-refresh-contents))
+		(unless (package-installed-p 'use-package)
+			(package-install 'use-package))
+		(require 'use-package)
+		(setq use-package-always-ensure t)
+		(require 'org)
+		(unless window-system
+			(xterm-mouse-mode 1))
+		(load-theme 'wombat)
+		(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+		;; END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	unset CONFIG CONFIGFILE
+}
+
+configure_readline() {
+	# https://www.gnu.org/software/bash/manual/html_node/Readline-Init-File-Syntax.html
+	_shellrc_debug_echo "configure_readline()"
+	CONFIGFILE=$HOME/.inputrc
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+		# Use the text that has already been typed as the prefix for searching through
+		# commands (i.e. more intelligent Up/Down behavior)
+		"\e[A": history-search-backward
+		"\e[B": history-search-forward
+		"\eOA": history-search-backward
+		"\eOB": history-search-forward
+
+		# Use Alt/Meta + Delete to delete the preceding word
+		"\e[3;3~": kill-word
+
+		$if Bash
+		# E.g. typing !!<space> will replace the !! with your last command
+		Space: magic-space
+		$endif
+
+		# Make Tab autocomplete regardless of filename case
+		set completion-ignore-case on
+
+		# List all matches in case multiple possible completions are possible
+		set show-all-if-ambiguous on
+
+		# Immediately add a trailing slash when autocompleting symlinks to directories
+		set mark-symlinked-directories on
+
+		# Do not autocomplete hidden files unless the pattern explicitly begins with a dot
+		set match-hidden-files off
+
+		# Show all autocomplete results at once
+		set page-completions off
+
+		# If there are more than 200 possible completions for a word, ask to show them all
+		set completion-query-items 200
+
+		# Show extra file information when completing, like `ls -F` does
+		set visible-stats on
+
+		# Be more intelligent when autocompleting by also looking at the text after
+		# the cursor. For example, when the current line is "cd ~/src/mozil", and
+		# the cursor is on the "z", pressing Tab will not autocomplete it to "cd
+		# ~/src/mozillail", but to "cd ~/src/mozilla". (This is supported by the
+		# Readline used by Bash 4.)
+		set skip-completed-text on
+
+		# Allow UTF-8 input and output, instead of showing stuff like $'\0123\0456'
+		set input-meta on
+		set output-meta on
+		set convert-meta off
+
+		# Treat hyphens and underscores as equivalent
+		set completion-map-case on
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	if _shellrc_is_bash; then
+		bind -f "$CONFIGFILE" 2>/dev/null
+	fi
+	unset CONFIG CONFIGFILE
+}
+
+configure_npm() {
+	_shellrc_command npm || return 0
+	_shellrc_debug_echo "configure_npm()"
+	CONFIGFILE=~/.npmrc
+	{ CONFIG=$(cat); } <<-EOF
+		; BEGIN_SHELLRC
+		; https://docs.npmjs.com/cli/using-npm/config
+		save-exact=true
+		prefer-offline=true
+		update-notifier=false
+		fund=false
+		long=true
+		; END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	unset CONFIG CONFIGFILE
+}
+
+configure_git() {
+	_shellrc_command git || return 0
+	_shellrc_debug_echo "configure_git()"
+	# .gitconfig
+	CONFIGFILE=~/.gitconfig
+	{ CONFIG=$(cat); } <<-EOF
+		; BEGIN_SHELLRC
+
+		[init]
+
+		defaultBranch = main
+
+		[core]
+
+		excludesfile = ~/.gitignore
+		attributesfile = ~/.gitattributes
+
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
+		whitespace = space-before-tab,trailing-space
+
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
+		quotepath = false
+
+		$(_shellrc_is_darwin && printf "# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/")
+		$(_shellrc_is_darwin && printf "trustctime = false")
+
+		# https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings
+		$(_shellrc_is_windows && printf "autocrlf = true" || printf "autocrlf = input")
+
+		bigFileThreshold = 64m
+
+		$(_shellrc_command nano && printf "editor = nano")
+
+		[color]
+
+		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
+		ui = auto
+
+		[merge]
+
+		# Include summaries of merged commits in newly created merge commit messages
+		log = true
+
+		[push]
+
+		default = simple
+
+		[credential]
+
+		helper = cache --timeout=3600
+
+		[filter "lfs"]
+		clean = git-lfs clean -- %f
+		smudge = git-lfs smudge -- %f
+		process = git-lfs filter-process
+		required = true
+
+		[alias]
+
+		# View the SHA, description, and history graph of the latest 20 commits
+		l = log --pretty=oneline -n 20 --graph
+		# View the current working tree status using the short format
+		s = status -s
+		# Show the diff between the latest commit and the current state
+		d = !"git diff-index --quiet HEAD -- || clear; git diff --patch-with-stat"
+		# git di \$number shows the diff between the state \$number revisions ago and the current state
+		di = !"d() { git diff --patch-with-stat HEAD~\$1; }; git diff-index --quiet HEAD -- || clear; d"
+		# Pull in remote changes for the current repository and all its submodules
+		pullall = !"git pull; git submodule foreach git pull origin master"
+		cloneall = clone --recursive
+		# Commit all changes
+		ca = !git add -A && git commit -av
+		# Switch to a branch, creating it if necessary
+		go = checkout -B
+		# Show verbose output about tags, branches or remotes
+		tags = tag -l
+		branches = branch -a
+		remotes = remote -v
+		# Credit an author on the latest commit
+		credit = "!f() { git commit --amend --author \"\$1 <\$2>\" -C HEAD; }; f"
+		# Interactive rebase with the given number of latest commits
+		rebasen = "!r() { git rebase -i HEAD~\$1; }; r"
+		undopush = push -f origin HEAD^:master
+
+		; END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+
+	# .gitattributes
+	CONFIGFILE=~/.gitattributes
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+
+		Package Control.sublime-settings -text
+
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+
+	# .gitignore
+	CONFIGFILE=~/.gitignore
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+
+		# macOS #
+		#########
+		.DS_Store
+		.AppleDouble
+		.LSOverride
+		# Icon must end with two \r
+		Icon[\r]
+		._*
+		.DocumentRevisions-V100
+		.fseventsd
+		.Spotlight-V100
+		.TemporaryItems
+		.Trashes
+		.VolumeIcon.icns
+		.com.apple.timemachine.donotpresent
+		.AppleDB
+		.AppleDesktop
+		Network Trash Folder
+		Temporary Items
+		.apdisk
+
+		# Linux #
+		#########
+		*~
+		.fuse_hidden*
+		.directory
+		.Trash-*
+		.nfs*
+
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	# shellcheck disable=SC2317
+	git_prompt() {
+		base=$(pwd -P)
+		# shellcheck disable=SC2034
+		for i in $(seq 10); do
+			test -z "$base" && break
+			test "$base" = '/' && break
+			test -e "$base/.git" && break
+			parent="$(cd "$base/.." 2>/dev/null && pwd -P 2>/dev/null)"
+			base=$parent
+		done
+		SHELLRC_PROMPT_GIT=""
+		if test -e "$base/.git"; then
+			_shellrc_set_format_tokens
+			branch_name=$(git symbolic-ref -q HEAD)
+			branch_name=${branch_name##refs/heads/}
+			branch_name=${branch_name:-HEAD}
+			case $(git status 2>/dev/null | tail -n1) in
+			*"nothing to commit"*)
+				SHELLRC_PROMPT_GIT="${_s_dim}git:${_s_underline}${branch_name}${_s_reset} "
+				;;
+			*)
+				case $(git status 2>/dev/null | head -n5) in
+				*"Changes to be committed"*)
+					SHELLRC_PROMPT_GIT="${_s_dim}git:${_s_underline}${branch_name}${_s_reset}${_s_dim}(staged)${_s_reset} "
+					;;
+				*)
+					SHELLRC_PROMPT_GIT="${_s_dim}git:${_s_underline}${branch_name}${_s_reset}${_s_dim}(dirty)${_s_reset} "
+					;;
+				esac
+				;;
+			esac
+		fi
+	}
+	unset CONFIG CONFIGFILE
+}
+
+# shellcheck disable=SC2139
+configure_wget() {
+	_shellrc_command wget || return 0
+	_shellrc_debug_echo "configure_wget()"
+	CONFIGFILE=~/.wgetrc
+	HSTSFILE=~/.wget-hsts
+	maybe_local_encoding() {
+		if _shellrc_command_has_option wget local-encoding; then
+			printf "local_encoding = UTF-8"
+		fi
+	}
+	alias wget="wget --config '$CONFIGFILE'"
+	if _shellrc_command_has_option wget hsts; then
+		alias wget="wget --config '$CONFIGFILE' --hsts-file '$HSTSFILE'"
+	fi
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+
+		# https://www.gnu.org/software/wget/manual/html_node/Wgetrc-Commands.html#Wgetrc-Commands
+		timestamping = on
+		no_parent = on
+		timeout = 60
+		tries = 3
+		retry_connrefused = on
+		trust_server_names = on
+		follow_ftp = on
+		adjust_extension = on
+		# http://unix.stackexchange.com/q/34730/6040
+		$(maybe_local_encoding)
+		robots = off
+		server_response = on
+		user_agent = Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)
+
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	unset CONFIG CONFIGFILE HSTSFILE
+	unset -f maybe_local_encoding
+}
+
+configure_editor() {
+	_shellrc_debug_echo "configure_editor()"
+	if _shellrc_command nano; then
+		export VISUAL="nano"
+		export EDITOR="nano"
+	fi
+}
+
+configure_ssh() {
+	_shellrc_command ssh || return 0
+	_shellrc_debug_echo "configure_ssh()"
+	CONFIGFILE=~/.ssh/config
+	if test ! -d ~/.ssh; then
+		mkdir -p ~/.ssh
+		chmod 700 ~/.ssh
+	fi
+	if test ! -f ~/.ssh/config; then
+		touch ~/.ssh/config
+		chmod 600 ~/.ssh/config
+	fi
+	{ CONFIG=$(cat); } <<-'EOF'
+		# BEGIN_SHELLRC
+
+		Host *
+			ServerAliveInterval 60
+			ServerAliveCountMax 240
+			Compression yes
+			# CVE-2016-0777, CVE-2016-0778
+			UseRoaming no
+			IgnoreUnknown UseKeychain,AddKeysToAgent
+			# Store passphrases in Keychain
+			AddKeysToAgent yes
+			UseKeychain yes
+
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+	if ! _shellrc_is_darwin &&
+		! _shellrc_command keychain &&
+		_shellrc_command /usr/bin/ssh-agent; then
+		# https://web.archive.org/web/20210506080335/https://mah.everybody.org/docs/ssh
+		# https://wiki.archlinux.org/title/SSH_keys
+		SSH_ENV="$HOME/.ssh/environment"
+		start_agent() {
+			/usr/bin/ssh-agent | sed 's/^echo/#echo/' >"${SSH_ENV}"
+			chmod 600 "${SSH_ENV}"
+			. "${SSH_ENV}" >/dev/null
+			# /usr/bin/ssh-add
+		}
+
+		if test -f "${SSH_ENV}"; then
+			. "${SSH_ENV}" >/dev/null
+			#ps ${SSH_AGENT_PID} doesn't work under cywgin
+			# shellcheck disable=2009
+			ps -ef | grep "${SSH_AGENT_PID}" | grep ssh-agent$ >/dev/null || start_agent
+		else
+			start_agent
+		fi
+	fi
+	unset CONFIG CONFIGFILE SSH_ENV
+	unset -f start_agent 2>/dev/null
+}
+
+configure_broot() {
+	_shellrc_command broot || return 0
+	_shellrc_debug_echo "configure_broot()"
+	_shellrc_is_bash || _shellrc_is_zsh || return 0
+	remove_source() {
+		! grep -q '/broot' "$1" 2>/dev/null && return
+		sed -e '/\/broot/d' "$1" >"$1.new"
+		mv -- "$1.new" "$1"
+	}
+	remove_source ~/.bashrc
+	remove_source ~/.bash_profile
+	remove_source ~/.zshrc
+	if test -f "$HOME/.config/broot/launcher/bash/br"; then
+		. "$HOME/.config/broot/launcher/bash/br"
+	fi
+}
+
+configure_python() {
+	_shellrc_command python || return 0
+	_shellrc_debug_echo "configure_python()"
+	# shellcheck disable=SC2317
+	load_python_autovenv() {
+		# Do not load if pyenv-virtualenv plugin is installed
+		# https://github.com/pyenv/pyenv-virtualenv
+		_shellrc_command_has_option pyenv virtualenv-init && return
+		test -d "$HOME/.pyenv/plugins/pyenv-virtualenv" && return
+		_shellrc_debug_echo "load_python_autovenv()"
+		# Modified from:
+		#   https://github.com/RaytingSec/autovenv/blob/master/.py_autovenv
+		venv_auto() {
+			venv_new="$(_venv_find)"
+			venv_old="$(_venv_curr)"
+			if test -z "$venv_new" && test -n "$venv_old"; then
+				echo "Deactivating $(_venv_name "$venv_old")..."
+				SHELLRC_PROMPT_PYTHON=""
+				deactivate
+			elif test -n "$venv_new" && test "$venv_new" != "$venv_old"; then
+				venv_short_path=$(basename "$(dirname "$venv_new")")
+				echo "Activating $(_venv_name "$venv_new")..."
+				SHELLRC_PROMPT_PYTHON="${_s_dim}venv:${_s_underline}${venv_short_path}${_s_reset} "
+				. "${venv_new}/bin/activate"
+				PS1=$(echo "${PS1:-}" | sed 's/(.venv) //g')
+			fi
+		}
+		_venv_candidates() {
+			echo "$1/.venv"
+			echo "$1/.env"
+		}
+		_venv_find() {
+			venv_root=.
+			j=0
+			while test "$j" -le 5; do
+				venv_real="$(cd "$venv_root" && pwd -P)"
+				printf '%s' "$(_venv_candidates "$venv_real")" | while read -r line; do
+					if test -f "$line/bin/activate"; then
+						cd "$line" && pwd -P
+						return
+					fi
+				done
+				test "$venv_real" = "/" && break
+				venv_root="${venv_root}/.."
+				j=$((j + 1))
+			done
+			unset venv_root venv_real candidate
+		}
+		_venv_curr() {
+			if test "${VIRTUAL_ENV:-}" && command -v deactivate >/dev/null; then
+				echo "$VIRTUAL_ENV"
+			fi
+		}
+		_venv_name() {
+			printf "%s" "$(basename "$(dirname "$1")")"
+		}
+	}
+	if _shellrc_command 'register-python-argcomplete'; then
+		# for zsh: https://stackoverflow.com/a/75791863
+		load_python_completion() {
+			_shellrc_command "$1" && eval "$(register-python-argcomplete "$1")"
+			true
+		}
+		load_python_completion pipx
+	fi
+	load_python_autovenv
+	unset -f load_python_autovenv load_python_completion 2>/dev/null || true
+}
+
+configure_sdkman() {
+	_shellrc_command sdk && return
+	_shellrc_debug_echo "configure_sdkman()"
+	if test -f "$HOME/.sdkman/bin/sdkman-init.sh"; then
+		set +e +u
+		. "$HOME/.sdkman/bin/sdkman-init.sh"
+		_shellrc_restore_options
+	fi
+}
+
+configure_automysqlbackup() {
+	_shellrc_command automysqlbackup || return 0
+	_shellrc_debug_echo "configure_automysqlbackup()"
+	_shellrc_set_BREW_PREFIX
+	mkdir -p "$HOME/.automysqlbackup/backups"
+	if test -f "$BREW_PREFIX/etc/automysqlbackup/myserver.conf"; then
+		CONFIGFILE="$BREW_PREFIX/etc/automysqlbackup/myserver.conf"
+	elif test -f "$BREW_PREFIX/etc/automysqlbackup/automysqlbackup.conf"; then
+		CONFIGFILE="$BREW_PREFIX/etc/automysqlbackup/automysqlbackup.conf"
+	else
+		CONFIGFILE=~/.config/automysqlbackup/automysqlbackup.conf
+	fi
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+		CONFIG_mysql_dump_username='root'
+		CONFIG_mysql_dump_password='root'
+		CONFIG_backup_dir="$HOME/.automysqlbackup/backups"
+		CONFIG_db_names=()
+		CONFIG_db_exclude=( 'information_schema' )
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	unset CONFIG CONFIGFILE
+}
+
+configure_goaccess() {
+	_shellrc_command goaccess || return 0
+	_shellrc_debug_echo "configure_goaccess()"
+	_shellrc_command_has_option goaccess --dummy-option || true
+	CONFIGFILE=~/.config/goaccess/goaccess.conf
+	# shellcheck disable=SC3037
+	{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+		# 165.73.80.113 - - [27/Apr/2024:03:23:00 +0000] "POST /xmlrpc.php HTTP/1.1" 200 225 "-" "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/95.0"
+		# [27/Apr/2024:03:51:34 +0000]
+		time-format %H:%M:%S
+		date-format %d/%b/%Y
+		$(_shellrc_command_has_option goaccess --datetime-format && echo -n 'datetime-format %d/%b/%Y:%H:%M:%S %z')
+		log-format COMBINED
+		# END_SHELLRC
+	EOF
+	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+	# shellcheck disable=SC2317
+	goaccess() {
+		command goaccess --config-file="$HOME/.config/goaccess/goaccess.conf"
+	}
+	alias goaccess-for='zcat -f -- logs-archive/sites/theworkers_net_2017/access.log*'
+	# shellcheck disable=SC2317
+	goaccess_dir() {
+		test -z "${1+x}" && return
+		zcat -f -- "$1"/access.log* | goaccess
+	}
+	unset CONFIG CONFIGFILE
+}
+
+configure_composer() {
+	_shellrc_command composer || return 0
+	_shellrc_debug_echo "configure_composer()"
+	if _shellrc_is_xdg; then
+		CONFIGFILE=~/.config/composer/config.json
+	else
+		CONFIGFILE=~/.composer/config.json
+	fi
+	export COMPOSER_FUND=0
+	unset CONFIGFILE
+}
+
+# ******************************************************************************
+# Other stuff
+# ******************************************************************************
+
+# shellcheck disable=SC2317
+make_utility_functions() {
+	_shellrc_debug_echo "make_utility_functions()"
+
+	get_user_home() {
+		USR=$1
+		if test -z "${1+x}"; then
+			USR=$(whoami)
+		fi
+		if _shellrc_command getent; then
+			getent passwd "$USR" | cut -d: -f6
+		elif _shellrc_command dscl; then
+			dscl . -read users/"$USR" NFSHomeDirectory 2>/dev/null | awk '{print $2}'
+		else
+			false; return
+		fi
+	}
+
+	configure_sudo() {
+		_shellrc_todo
+		# https://stackoverflow.com/a/8636711/218107
+		# https://stackoverflow.com/a/28382838/218107
+		# https://superuser.com/a/869185
+		# https://unix.stackexchange.com/a/549329
+		# Example
+		# Defaults  env_keep += "http_proxy"
+		# Defaults  env_keep += "https_proxy"
+		# Defaults  env_keep += "HTTP_PROXY"
+		# Defaults  env_keep += "HTTPS_PROXY"
+		{ CONFIG=$(cat); } <<-EOF
+		EOF
+		sudo sh -c "echo '$CONFIG' > /etc/sudoers.d/shellrc"
+	}
+
+	remove_host_key_at_line() {
+		test "$#" -eq 1 || return 0
+		sed "$1d" ~/.ssh/known_hosts >~/.ssh/known_hosts.sed
+		mv -- ~/.ssh/known_hosts.sed ~/.ssh/known_hosts
+		chmod 600 ~/.ssh/known_hosts
+	}
+
+	list_all_binaries() {
+		# https://unix.stackexchange.com/a/120870
+		{
+			set -f
+			ORIGINAL_IFS=$IFS
+			IFS=:
+			for d in $PATH; do
+				set +f
+				test -n "$d" || d=.
+				for f in "$d"/.[!.]* "$d"/..?* "$d"/*; do
+					if test -f "$f" && test -x "$f"; then
+						printf '%s\t%s\n' "${f##*/}" "$f"
+					fi
+				done
+			done
+			IFS=$ORIGINAL_IFS
+		} | sort
+		_shellrc_restore_options
+		unset f d
+	}
+
+	_shellrc_command rsync && zap() {
+		test "${1:-}" || return 0
+		# https://unix.stackexchange.com/a/642591
+		tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
+		rsync -aP --delete "$tempdir/" "$1"
+		rm -r "$1"
+		rm -r "$tempdir"
+	}
+
+	_shellrc_command git && git_lf() {
+		# https://stackoverflow.com/a/4683783
+		git ls-files -z --deleted | xargs -0 git add
+		while test ! -e ./.git; do
+			curr=$(pwd)
+			test "$curr" = '/' -o "$curr" = '//' && break
+			cd ..
+		done
+		if  _shellrc_command_has_option git --renormalize; then
+			echo "* text=auto" >>.gitattributes
+			git add --renormalize .
+			git commit -m "Introduce end-of-line normalization"
+		else
+			echo "* text=auto" >>.gitattributes
+			rm .git/index     # Remove the index to force git to
+			git reset         # re-scan the working directory
+			git add -u
+			git add .gitattributes
+			git commit -m "Introduce end-of-line normalization"
+		fi
+	}
+
+	wp_delete_thumbnails() {
+		case "$(pwd)" in
+		*/uploads)
+			find . -regextype egrep -regex ".+-[0-9]+?x[0-9]+\.(jpe?g|png)$" -type f -print0 |
+				xargs -0 rm
+			;;
+		*)
+			echo "Must cd into \`uploads/\` first. Aborting."
+			;;
+		esac
+	}
+
+	_shellrc_command mogrify && resize_images() {
+		test -z "$2" && RES="3072" || RES="$2"
+		find "$1" -regextype egrep -regex ".+\.(jpe?g|png)$" -type f -print0 |
+			xargs -0 mogrify -resize "${RES}x${RES}>" -quality 92
+	}
+
+	_shellrc_command git && git_freeze_submodule() {
+		git rev-parse --is-inside-work-tree >/dev/null || return 0
+		SUBMODULE="$1"
+		if test -z "$SUBMODULE"; then
+			echo "Missing submodule path. Aborting."
+			false; return
+		fi
+		if git diff-index --quiet --cached HEAD -- &&
+			git diff-files --quiet &&
+			# test -z "$(git ls-files --others)" && \ # untracked files
+			output=$(git status --porcelain) && test -z "$output"; then
+			git fetch "$SUBMODULE" HEAD
+			git rm "$SUBMODULE"
+			git commit -m "Freeze $SUBMODULE history into repository"
+			git subtree add --prefix="$SUBMODULE" FETCH_HEAD
+		else
+			echo "Git status is dirty. Aborting."
+		fi
+		unset output
+	}
+
+	_shellrc_is_darwin && allow() {
+		test "$#" -eq 1 || return 0
+		codesign --sign - --force --deep "${1}"
+		xattr -r -d com.apple.quarantine "${1}"
+		xattr -r -d com.apple.quarantine "${1}/" 2>/dev/null
+		spctl --add "${1}"
+	}
+
+	_shellrc_command nmap && ipscan() {
+		test "$(id -u 2>/dev/null)" -ne 0 && echo "NOTE: sudo or run as root if possible! Gives better results."
+		nmap -sn -T5 --min-parallelism 100 "$1" | awk '
+				/scan report for/ {ip=$5}
+				/MAC Address/ {printf ("%s\t%s %s %s\n", ip,$4,$5,$6)}
+			'
+	}
+
+	_shellrc_command brew && enable_homebrew_bash() {
+		_shellrc_set_BREW_PREFIX
+		test "$(printf %.1s "$BASH_VERSION")" -lt 4 &&
+			echo "Please run:"
+		test -f "$BREW_PREFIX/bin/bash" ||
+			echo "$  brew install bash"
+		grep -Fxq "$BREW_PREFIX/bin/bash" /etc/shells ||
+			echo "$  echo \"\$(brew --prefix)/bin/bash\" | sudo tee -a /etc/shells"
+		test "$(printf %.1s "$BASH_VERSION")" -lt 4 &&
+			echo "$  chsh -s \"\$(brew --prefix)/bin/bash\""
+	}
+
+	_shellrc_command brew && disable_homebrew_bash() {
+		echo "Run:"
+		echo "  chsh -s /bin/bash"
+	}
+
+	_shellrc_command nebula && configure_nebula() {
+		if test "$(id -u 2>/dev/null)" -ne 0; then
+			echo "Please re-run this command using:"
+			echo "$ sudosudo configure_nebula"
+			false; return
+		fi
+		PREFIX=''
+		_shellrc_set_BREW_PREFIX
+		for loc in "$BREW_PREFIX/etc" "$HOME/.config" "$HOME/.local" "$HOME/local"; do
+			if test -d "$loc/nebula"; then
+				PREFIX=$loc/nebula
+				unset loc
+				break
+			fi
+		done
+		CONFIGFILE=$PREFIX/config.yml
+		s='  ' # damn YAML
+		{ CONFIG=$(cat); } <<-EOF
+			# BEGIN_SHELLRC
+			pki:
+			${s}ca: $PREFIX/ca.crt
+			${s}cert: $PREFIX/host.crt
+			${s}key: $PREFIX/host.key
+			static_host_map:
+			${s}'100.100.0.1': ['135.181.203.23:4242', 'nebula-lighthouse-1.theworkers.net:4242']
+			lighthouse:
+			${s}hosts:
+			${s}${s}- '100.100.0.1'
+			punchy:
+			${s}punch: true
+			${s}respond: true
+			firewall:
+			${s}outbound:
+			${s}${s}- port: any
+			${s}${s}${s}proto: any
+			${s}${s}${s}host: any
+			${s}inbound:
+			${s}${s}- port: any
+			${s}${s}${s}proto: any
+			${s}${s}${s}host: any
+			tun:
+			${s}dev: utun10
+			relay:
+			${s}relays:
+			${s}${s}- '100.100.0.1'
+			${s}use_relays: true
+			# END_SHELLRC
+		EOF
+		_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
+		if test -f "$PREFIX/host.crt"; then
+			printf -- 'Nebula certificate found in %s\n\n' "$PREFIX/host.crt"
+			printf -- '%s' "$(nebula-cert print --path "$PREFIX/host.crt")"
+			printf -- '\n\n'
+			return 0
+		fi
+		if test ! -f "$PREFIX/host.key"; then
+			nebula-cert keygen -out-key "$PREFIX/host.key" -out-pub "$PREFIX/host.pub"
+		fi
+		CRT="$(find /etc/nebula ~ "$(pwd)" -maxdepth 3 -type f -name ca.crt 2>/dev/null | sort | head -1)"
+		KEY="$(find /etc/nebula ~ "$(pwd)" -maxdepth 3 -type f -name ca.key 2>/dev/null | sort | head -1)"
+		test -z "$CRT" && CRT=./ca.crt
+		test -z "$KEY" && KEY=./ca.key
+		printf -- 'This is your Nebula public key\n(%s):\n\n' "$PREFIX/host.pub"
+		printf -- '%s' "$(cat "$PREFIX/host.pub")"
+		printf -- '\n\n'
+		printf -- 'If you have the "ca.key" and "ca.crt" files on your machine\n'
+		printf -- 'you can run this to generate the host certificate:\n'
+		printf -- '\n'
+		printf -- 'nebula-cert sign \\\n'
+		printf -- '  -name "%s" \\\n' "$(hostname -s)"
+		printf -- '  -ip "100.100.xxx.xxx/16" \\\n'
+		printf -- '  -in-pub "%s" \\\n' "$PREFIX/host.pub"
+		printf -- '  -ca-key "%s" \\\n' "$KEY"
+		printf -- '  -ca-crt "%s" \\\n' "$CRT"
+		printf -- '  -out-crt "%s" \\\n' "$PREFIX/host.crt"
+		printf -- '  -out-qr "%s"\n' "$PREFIX/host.crt.png"
+		printf -- '\n'
+		printf -- 'cp %s %s' "$CRT" "$PREFIX/ca.crt"
+		printf -- '# Delete the sensitive CA files!\n'
+		printf -- 'rm "%s" "%s"\n\n' "$CRT" "$KEY"
+	}
+
+	_shellrc_command nebula && nebula_is_online() {
+		_shellrc_todo
+		# time="2024-04-19T02:26:57Z"
+		#   level=info
+		#   msg="Tunnel status"
+		#   certName=tommaso-laptop-1
+		#   localIndex=2807061356
+		#   remoteIndex=3257731715
+		#   tunnelCheck="map[method:active state:dead]"
+		#   vpnIp=100.100.100.1
+		# time="2024-04-19T02:27:00Z" level=info msg="Handshake message sent"
+		#   handshake="map[stage:1 style:ix_psk0]"
+		#   initiatorIndex=3525493641
+		#   localIndex=3525493641
+		#   remoteIndex=0
+		#   udpAddrs="[135.181.203.23:4242]"
+		#   vpnIp=100.100.0.1
+		# time="2024-04-19T02:27:07Z"
+		#   level=info
+		#   msg="Handshake timed out"
+		#   durationNs=6699423275
+		#   handshake="map[stage:1 style:ix_psk0]"
+		#   initiatorIndex=3525493641
+		#   localIndex=3525493641
+		#   remoteIndex=0
+		#   udpAddrs="[135.181.203.23:4242]"
+		#   vpnIp=100.100.0.1
+	}
+
+	_shellrc_command dnsmasq && configure_dnsmasq() {
+		_shellrc_todo && return
+		if test "$(id -u 2>/dev/null)" -ne 0; then
+			echo "Please re-run this command using:"
+			echo "$ sudosudo configure_dnsmasq"
+			false; return
+		fi
+		CONFIGFILE=/etc/dnsmasq.conf
+		{ CONFIG=$(cat); } <<-EOF
+			# BEGIN_SHELLRC
+
+			domain-needed         # Only lookup full domains
+			bogus-priv            # No reverse IP lookups
+			no-resolv             # Don't use DNS servers listed in resolv.conf
+			no-poll               # Don't poll changes in resolv.conf
+			no-hosts              # Don't read /etc/hosts
+			all-servers           # Use all upstream server and take first reply
+			dns-loop-detect       # Enable code to detect DNS forwarding loops
+			clear-on-reload       # Clear the DNS cache when upstream servers change
+
+			## Upstream DNS servers
+			server=8.8.8.8        # Google
+
+			# addn-hosts=/etc/hosts-stevenblack-hosts-ads
+			# addn-hosts=/etc/hosts-adobe
+
+			listen-address=127.0.0.1
+
+			## Local development
+			address=/.test/127.0.0.1
+			address=/.dev/127.0.0.1
+
+			# END_SHELLRC
+		EOF
+		_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
+		unset CONFIG CONFIGFILE
+	}
+
+	configure_photostructure() {
+		{ CONFIG=$(cat); } <<-EOF
+		# BEGIN_SHELLRC
+		enableArchive = true
+		enableDelete = true
+		enableEmptyTrash = false
+		enableRemove = true
+		enableRemoveAssets = false
+		# excludeGlobsAdd = [
+		#   "**/res/screen/",
+		#   "**/*.app/",
+		#   "**/*.fcpbundle/**/Transcoded Media/",
+		#   "**/*.fcpbundle/**/Render Files/",
+		#   "**/wp-content/uploads/
+		# ]
+		excludeGlobsOmit = []
+		# keywordBlocklist = [
+		#   "private"
+		# ]
+		maxAssetFileSizeBytes = 5368709120
+		maxVideoDurationSec = 1800
+		rejectRatingsLessThan = -100
+		# badDates = [
+		#   "2002-12-08T12:00:00"
+		# ]
+		# minValidYear = 1920
+		# videoFrameAtSec = 1.5
+		allowUserAgent = true
+		# optOut = false
+		# email = "email@example.com"
+		reportErrors = false
+		writeMetadataToSidecarsIfImage = false
+		# writeMetadataToSidecarsIfSidecarExists = true
+		pickPlanOnWelcome = false
+		# https://moment.github.io/luxon/#/formatting?id=table-of-tokens .
+		# assetPathnameFormat = "y/y-MM-dd/BASE"
+		# verifyFileCopies = true
+		autoUpdateCheck = true
+		# valid values: "prealpha", "alpha", "beta" or "stable"
+		# updateChannel = "beta"
+		# FFmpeg supports both software and hardware encoders. Valid values include
+		# "auto" (which should "just work" for everyone), "h264_nvenc" for GPUs,
+		# "cuda" for NVIDIA GPUs, "dxva2" or "d3d11va" for Windows, or use "disable"
+		# to omit this argument.
+		#
+		# Run "ffmpeg -hwaccels" to see supported acceleration methods.
+		#
+		ffmpegHwaccel = "auto"
+		ffmpegThreads = 1
+		transcodeFrameRate = 30
+		transcodeMaxDim = 1280
+		# transcodeVideos = true
+		# hiddenHomeTags = [
+		#   "Type"
+		# ]
+		lazyLoadExtraVh = 200
+		# END_SHELLRC
+		EOF
+	}
+
+	_shellrc_is_darwin && cleanup_macos() {
+		if test "$(id -u 2>/dev/null)" -ne 0; then
+			echo "Please re-run this command using:"
+			echo "$ sudosudo cleanup_macos"
+			false; return
+		fi
+		## XCode and CLI Tools
+		##
+		## https://developer.apple.com/library/archive/technotes/tn2339/_index.html
+		##
+		## Xcode includes all your command-line tools. If it is installed on
+		## your system, remove it to uninstall your tools.
+		## If your tools were downloaded separately from Xcode, then they are
+		## located at /Library/Developer/CommandLineTools on your system.
+		## Delete the CommandLineTools folder to uninstall them.
+
+		# Get the gersion of macOS CLI Tools
+		pkgutil --pkg-info=com.apple.pkg.CLTools_Executables | grep version
+
+		# Get the Xcode version
+		# NOTE: When only CommandLineTools is install without Xcode, using
+		# xcodebuild returns the following error:
+		# > xcode-select: error: tool 'xcodebuild' requires Xcode, but active [...]
+		/usr/bin/xcodebuild -version
+
+		# Install CLI Tools
+		sudo rm -rf /Library/Developer/CommandLineTools
+		sudo xcodebuild -license accept
+		sudo xcode-select --install
+		sudo xcode-select --reset
+
+		# # Sparkle framework leftovers
+		# find "$HOME" -maxdepth 10 -type d -name ".Sparkle"
+		# # Lightroom media cache files
+		# # https://news.ycombinator.com/item?id=11095581
+		# rm "$HOME/Library/Caches/Adobe/Lightroom/Video/Media Cache Files/*"
+		# rm "$HOME/Library/Application Support/Adobe/Common/Media Cache Files/*"
+	}
+
+	_shellrc_is_darwin && configure_macos() {
+		if test "$(id -u 2>/dev/null)" -ne 0; then
+			echo "Please re-run this command using:"
+			echo "$ sudosudo configure_macos"
+			false; return
+		fi
+		_shellrc_is_darwin || return 0
+		# OG:
+		# https://github.com/mathiasbynens/dotfiles/blob/main/.macos
+
+		# Keep-alive: update existing `sudo` time stamp until finished
+		while true; do
+			sudo -n true
+			sleep 60
+			kill -0 "$$" || exit
+		done 2>/dev/null &
+
+		mkdir -p ~/Library/Fonts
+
+		# https://github.com/kevinSuttle/macOS-Defaults/blob/master/.macos
+		# https://macos-defaults.com
+		# $ defaults help
+		# $ defaults domains | tr ',' '\n'
+		# $ defaults find ${word}
+		# $ defaults read-type ${domain} ${key}
+		# $ defaults rename ${domain} ${old_key} ${new_key}
+		# $ open ~/Library/Preferences/ByHost/.GlobalPreferences*
+		osascript -e 'tell application "System Preferences" to quit'
+		defaults write NSGlobalDomain "NSNavPanelExpandedStateForSaveMode" -bool "true"
+		defaults write NSGlobalDomain "NSNavPanelExpandedStateForSaveMode2" -bool "true"
+		defaults write NSGlobalDomain "PMPrintingExpandedStateForPrint" -bool "true"
+		defaults write NSGlobalDomain "PMPrintingExpandedStateForPrint2" -bool "true"
+		defaults write NSGlobalDomain "NSDocumentSaveNewDocumentsToCloud" -bool "false"
+		defaults write NSGlobalDomain "NSCloseAlwaysConfirmsChanges" -bool "false"
+		defaults write NSGlobalDomain "AppleShowAllExtensions" -bool "true"
+		defaults write NSGlobalDomain "AppleShowScrollBars" -string "Automatic"
+		defaults write NSGlobalDomain "KeyRepeat" -int 1
+		defaults write NSGlobalDomain "InitialKeyRepeat" -int 12
+		defaults write NSGlobalDomain "com.apple.keyboard.fnState" -bool "true"
+		defaults write NSGlobalDomain "AppleKeyboardUIMode" -int 3
+		defaults write NSGlobalDomain "NSToolbarTitleViewRolloverDelay" -float "0"
+		defaults write com.apple.iCal "Show Week Numbers" -bool "true"
+		defaults write com.apple.iCal "TimeZone support enabled" -bool "true"
+		defaults write com.apple.screencapture "location" -string "${HOME}/Screenshots"
+		defaults write com.apple.screencapture "type" -string "png"
+		defaults write com.apple.screencapture "disable-shadow" -bool "true"
+		defaults write com.apple.screencapture "show-thumbnail" -bool "false"
+		defaults write com.apple.dock "show-recents" -bool "false"
+		defaults write com.apple.CrashReporter "DialogType" -string "Server"
+		defaults write com.apple.TextEdit "RichText" -bool "false"
+		# defaults write com.apple.TextEdit "PlainTextEncoding" -int 4
+		# defaults write com.apple.TextEdit "PlainTextEncodingForWrite" -int 4
+		defaults write com.apple.Safari "ShowFullURLInSmartSearchField" -bool "true"
+		defaults write com.apple.Safari "SuppressSearchSuggestions" -bool "true"
+		defaults write com.apple.Safari "WebKitTabToLinksPreferenceKey" -bool "true"
+		defaults write com.apple.Safari "com.apple.Safari.ContentPageGroupIdentifier.WebKit2TabsToLinks" -bool "true"
+		defaults write com.apple.Safari "IncludeInternalDebugMenu" -bool "true"
+		defaults write com.apple.Safari "IncludeDevelopMenu" -bool "true"
+		defaults write com.apple.Safari "WebKitDeveloperExtrasEnabledPreferenceKey" -bool "true"
+		defaults write com.apple.Safari "com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled" -bool "true"
+		defaults write com.apple.finder "ShowPathbar" -bool "true"
+		defaults write com.apple.finder "FXDefaultSearchScope" -string "SCcf"
+		defaults write com.apple.finder "FXEnableExtensionChangeWarning" -bool "false"
+		defaults write com.apple.finder "FXPreferredViewStyle" -string "Nlsv"
+		defaults write com.apple.finder "FXEnableExtensionChangeWarning" -bool "false"
+		defaults write com.apple.finder "FXPreferredViewStyle" -string "Nlsv"
+		defaults write com.apple.finder "WarnOnEmptyTrash" -bool "false"
+		defaults write com.apple.Terminal "FocusFollowsMouse" -bool "false"
+		defaults write com.apple.Terminal "ShowLineMarks" -int 0
+		defaults write com.apple.NetworkBrowser "BrowseAllInterfaces" -bool "true"
+		defaults write com.apple.AppleMultitouchTrackpad "FirstClickThreshold" -int "0"
+		defaults write com.apple.HIToolbox AppleFnUsageType -int "0"
+		defaults write com.apple.appleseed.FeedbackAssistant "Autogather" -bool "false"
+		defaults write com.apple.dt.Xcode "ShowBuildOperationDuration" -bool "true"
+		defaults write com.apple.iphonesimulator "ScreenShotSaveLocation" -string "$HOME/Pictures/Simulator Screenshots"
+		defaults write com.apple.desktopservices "DSDontWriteNetworkStores" -bool "true"
+		defaults write com.apple.desktopservices "DSDontWriteUSBStores" -bool "true"
+		defaults write com.apple.mail "AddressesIncludeNameOnPasteboard" -bool "false"
+		defaults write com.googlecode.iterm2 "PromptOnQuit" -bool "false"
+		defaults write com.apple.TimeMachine "DoNotOfferNewDisksForBackup" -bool "true"
+		killall Finder
+		killall Safari
+		killall TextEdit
+		killall Xcode
+		killall Terminal
+	}
+
+	_shellrc_is_darwin && configure_macos_substitutions() {
+		_shellrc_todo && return
+		if test "$(id -u 2>/dev/null)" -ne 0; then
+			echo "Please re-run this command using:"
+			echo "$ sudosudo configure_macos_substitutions"
+			false; return
+		fi
+		# https://apple.stackexchange.com/a/465487
+		{ CONFIG=$(cat); } <<-EOF
+			delete :NSUserDictionaryReplacementItems
+			add :NSUserDictionaryReplacementItems array
+			add :NSUserDictionaryReplacementItems:0:replace string moo
+			add :NSUserDictionaryReplacementItems:0:with string bar
+			add :NSUserDictionaryReplacementItems:0:on integer 1
+			add :NSUserDictionaryReplacementItems:1:replace string baz
+			add :NSUserDictionaryReplacementItems:1:with string quux
+			add :NSUserDictionaryReplacementItems:1:on integer 1
+			add :NSUserDictionaryReplacementItems:2:replace string ick
+			add :NSUserDictionaryReplacementItems:2:with string don\'t
+			add :NSUserDictionaryReplacementItems:2:on integer 1
+			print :NSUserDictionaryReplacementItems
+			___done
+		EOF
+		# /usr/libexec/PlistBuddy ~/Library/Preferences/.GlobalPreferences.plist < <(printf '%s' "$CONFIG")
+		echo "$CONFIG" | /usr/libexec/PlistBuddy ~/Library/Preferences/.GlobalPreferences.plist
+	}
+
+	_shellrc_command brew && install_brew_formulae() {
+		:
+		# automysqlbackup
+		# bash-completion@2
+		# broot
+		# colima
+		# difftastic
+		# direnv
+		# docker
+		# docker-buildx
+		# docker-compose
+		# docx2txt
+		# emacs
+		# fd
+		# ffmpeg
+		# fzf
+		# gallery-dl
+		# git
+		# git-filter-repo
+		# git-lfs
+		# htop
+		# hurl
+		# imagemagick
+		# iperf3
+		# jq
+		# lftp
+		# mkcert
+		# nano
+		# nanorc
+		# ncdu
+		# nebula
+		# netcat
+		# nmap
+		# openfortivpn
+		# p7zip
+		# php
+		# pipx
+		# powershell/tap/powershell
+		# pyenv
+		# qpdf
+		# rclone
+		# ripgrep
+		# rsync
+		# screen
+		## shellcheck
+		# telnet
+		# tree
+		# wget
+		# yt-dlp
+		# zola
+	}
+	true
+}
+
+sudosudo() {
+	_shellrc_todo
+	sudo bash -ic ". $HOME/.shellrc; eval $*"
+}
+
+main
+unset -f main
+}
