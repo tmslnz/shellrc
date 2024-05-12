@@ -56,6 +56,9 @@ The execution flow is controlled in `main()`.
 ### Bash
 https://www.gnu.org/software/bash/
 
+### Bash Completion
+https://github.com/scop/bash-completion
+
 ### Z shell
 https://www.zsh.org
 
