@@ -5,6 +5,7 @@ Comprehesive and portable environment configuration in a single file.
 - [Update](#update)
 - [Conventions](#conventions)
 - [Supported Tools](#supported-tools)
+- [Utility Functions](#utility-functions)
 
 ## Overview
 The goal of this script to **safely(1)** and **predictably(2)** store and update CLI and other app configurations from a single source, without using symlinks, Git or other more complex tools.
@@ -133,3 +134,19 @@ https://getcomposer.org
 
 ### shdotenv
 https://github.com/ko1nksm/shdotenv
+
+## Utility Functions
+
+#### `get_user_home <username>`
+
+#### `remove_host_key_at_line <line>`
+
+#### `list_all_binaries`
+
+#### `zap <dir>`
+
+#### `git_lf <dir>`
+
+#### `git_freeze_submodule <path>`
+
+#### `configure_nebula`
