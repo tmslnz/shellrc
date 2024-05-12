@@ -1894,6 +1894,12 @@ make_utility_functions() {
 	}
 
 	_shellrc_command git && git_freeze_submodule() {
+		while test ! -e ./.git; do
+			curr=$(pwd)
+			test "$curr" = '/' -o "$curr" = '//' && break
+			cd ..
+		done
+		test -e "$(pwd)/.git" || return 0
 		git rev-parse --is-inside-work-tree >/dev/null || return 0
 		SUBMODULE="$1"
 		if test -z "$SUBMODULE"; then
@@ -1911,7 +1917,7 @@ make_utility_functions() {
 		else
 			echo "Git status is dirty. Aborting."
 		fi
-		unset output
+		unset output SUBMODULE
 	}
 
 	_shellrc_is_darwin && allow() {
