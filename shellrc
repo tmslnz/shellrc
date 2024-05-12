@@ -1844,6 +1844,7 @@ make_utility_functions() {
 
 	_shellrc_command rsync && zap() {
 		test "${1:-}" || return 0
+		test -d "$1" || return 0
 		# https://unix.stackexchange.com/a/642591
 		tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
 		rsync -aP --delete "$tempdir/" "$1"
