@@ -7,26 +7,25 @@ Comprehesive and portable environment configuration in a single file.
 - [Supported Tools](#supported-tools)
 
 ## Overview
+The goal of this script to **safely(1)** and **predictably(2)** store and update CLI and other app configurations from a single source, without using symlinks, Git or other more complex tools.
 
+A single `source ~/.shellrc` *should* configure the shell environment and any supported (and installed) tools.
 
-The goal of this script to **predictably and safely** store and update CLI and other app configurations from a single source, without using symlinks, Git or other more complex tools.
+**(1) Safely:**
+Configuration values coming from `.shellrc` are either appended or prepended to existing config files, in such a way that pre-existing user settings are preserved.
 
-A single run of the script *should* set the environment and any available tool's config in one go.
-Configurations are only written for tools that are present in the system.
+`.shellrc`'s `main()` runs only under interactive shells and with `set -euf` for additional safety. These values are restored to `set +euf` on success.
 
-The script writes all configurations conditionally (i.e: `x in PATH`, `OS == Darwin`) and only within "fenced" sections (e.g. `BEGIN_SHELLRC [...] END_SHELLRC`).
-Local changes _outside_ of a fenced section are never over-written.
-Local changes _within_ a fenced section are also not overwritten if the edits are more recent than the `~/.shellrc` file's last updated timestamp.
+**(2) Predictably:**
+Configurations are only written for the tools that are already present in the system to minimise clobbering the `~/` and `~/.config` dirs.
 
 ## Install
-
 ```
 curl -fsSL https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc -o ~/.shellrc
 . ~/.shellrc
 ```
 
 ## Update
-
 `.shellrc` automatically checks for updates.
 
 The last snapshot can be restored using:
@@ -43,13 +42,17 @@ The updater saves previous versions in `~/.config/shellrc/snapshots`
 
 ## Conventions
 
-All code in the script is wrapped in functions.
+All code in the script is wrapped in funsctions.
 
 There are two classes of functions in the script:
-- `_shellrc_*`: persistent in the session. These are utlities called throughout the script.
+- `_shellrc_*`: persistent in the session. These are utilities called throughout the script.
 - `configure_*`: called once, then `unset -f` to remove them from the symbols list.
 
 The execution flow is controlled in `main()`.
+
+The script writes all configurations conditionally (i.e: `x in PATH`, `OS == Darwin`) and only within "fenced" sections (e.g. `BEGIN_SHELLRC [...] END_SHELLRC`).
+Local changes _outside_ of a fenced section are never over-written.
+Local changes _within_ a fenced section are also not overwritten if the edits are more recent than the `~/.shellrc` file's last updated timestamp.
 
 ## Supported Tools
 
@@ -106,6 +109,9 @@ https://github.com/pyenv/pyenv
 
 ### python
 https://www.python.org
+
+### python argcomplete
+https://kislyuk.github.io/argcomplete/
 
 ### direnv
 https://direnv.net
