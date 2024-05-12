@@ -1373,58 +1373,37 @@ configure_git() {
 	CONFIGFILE=~/.gitconfig
 	{ CONFIG=$(cat); } <<-EOF
 		; BEGIN_SHELLRC
-
 		[init]
-
 		defaultBranch = main
-
 		[core]
-
 		excludesfile = ~/.gitignore
 		attributesfile = ~/.gitattributes
-
 		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
 		whitespace = space-before-tab,trailing-space
-
 		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corequotePath
 		quotepath = false
-
 		$(_shellrc_is_darwin && printf "# http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/")
 		$(_shellrc_is_darwin && printf "trustctime = false")
-
 		# https://docs.github.com/en/get-started/getting-started-with-git/configuring-git-to-handle-line-endings
 		$(_shellrc_is_windows && printf "autocrlf = true" || printf "autocrlf = input")
-
 		bigFileThreshold = 64m
-
 		$(_shellrc_command nano && printf "editor = nano")
-
 		[color]
-
 		# https://git-scm.com/docs/git-config#Documentation/git-config.txt-corewhitespace
 		ui = auto
-
 		[merge]
-
 		# Include summaries of merged commits in newly created merge commit messages
 		log = true
-
 		[push]
-
 		default = simple
-
 		[credential]
-
 		helper = cache --timeout=3600
-
 		[filter "lfs"]
 		clean = git-lfs clean -- %f
 		smudge = git-lfs smudge -- %f
 		process = git-lfs filter-process
 		required = true
-
 		[alias]
-
 		# View the SHA, description, and history graph of the latest 20 commits
 		l = log --pretty=oneline -n 20 --graph
 		# View the current working tree status using the short format
@@ -1449,7 +1428,6 @@ configure_git() {
 		# Interactive rebase with the given number of latest commits
 		rebasen = "!r() { git rebase -i HEAD~\$1; }; r"
 		undopush = push -f origin HEAD^:master
-
 		; END_SHELLRC
 	EOF
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
@@ -1458,9 +1436,7 @@ configure_git() {
 	CONFIGFILE=~/.gitattributes
 	{ CONFIG=$(cat); } <<-EOF
 		# BEGIN_SHELLRC
-
 		Package Control.sublime-settings -text
-
 		# END_SHELLRC
 	EOF
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
@@ -1556,7 +1532,6 @@ configure_wget() {
 	fi
 	{ CONFIG=$(cat); } <<-EOF
 		# BEGIN_SHELLRC
-
 		# https://www.gnu.org/software/wget/manual/html_node/Wgetrc-Commands.html#Wgetrc-Commands
 		timestamping = on
 		no_parent = on
@@ -1571,7 +1546,6 @@ configure_wget() {
 		robots = off
 		server_response = on
 		user_agent = Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Trident/5.0)
-
 		# END_SHELLRC
 	EOF
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
@@ -1601,7 +1575,6 @@ configure_ssh() {
 	fi
 	{ CONFIG=$(cat); } <<-'EOF'
 		# BEGIN_SHELLRC
-
 		Host *
 			ServerAliveInterval 60
 			ServerAliveCountMax 240
@@ -1612,7 +1585,6 @@ configure_ssh() {
 			# Store passphrases in Keychain
 			AddKeysToAgent yes
 			UseKeychain yes
-
 		# END_SHELLRC
 	EOF
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
@@ -2070,7 +2042,6 @@ make_utility_functions() {
 		CONFIGFILE=/etc/dnsmasq.conf
 		{ CONFIG=$(cat); } <<-EOF
 			# BEGIN_SHELLRC
-
 			domain-needed         # Only lookup full domains
 			bogus-priv            # No reverse IP lookups
 			no-resolv             # Don't use DNS servers listed in resolv.conf
@@ -2079,19 +2050,14 @@ make_utility_functions() {
 			all-servers           # Use all upstream server and take first reply
 			dns-loop-detect       # Enable code to detect DNS forwarding loops
 			clear-on-reload       # Clear the DNS cache when upstream servers change
-
 			## Upstream DNS servers
 			server=8.8.8.8        # Google
-
 			# addn-hosts=/etc/hosts-stevenblack-hosts-ads
 			# addn-hosts=/etc/hosts-adobe
-
 			listen-address=127.0.0.1
-
 			## Local development
 			address=/.test/127.0.0.1
 			address=/.dev/127.0.0.1
-
 			# END_SHELLRC
 		EOF
 		_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
