@@ -2123,6 +2123,7 @@ make_utility_functions() {
 	}
 
 	configure_photostructure() {
+		_shellrc_todo && return
 		{ CONFIG=$(cat); } <<-EOF
 		# BEGIN_SHELLRC
 		enableArchive = true
