@@ -818,7 +818,8 @@ configure_zsh() {
 	}
 	load_zsh_completion() {
 		# See: https://zsh.sourceforge.io/Doc/Release/Completion-System.html#index-matcher_002dlist_002c-completion-style
-		autoload -Uz compinit && compinit
+		# See: https://stackoverflow.com/a/22753363
+		autoload -Uz compinit && compinit -u
 		# autoload -U +X compinit && compinit
 		# zstyle ':completion:*' matcher-list 'r:|?=**'
 		zstyle ':completion:*' matcher-list \
