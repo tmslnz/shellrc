@@ -387,8 +387,16 @@ _shellrc_upsert_section() {
 	if ! test -f "$_FILE"; then
 		mkdir -p "$(dirname "$_FILE")" && touch "$_FILE"
 	fi
+	if ! test -r "$CONFIGFILE"; then
+		echo "No read permission: $CONFIGFILE"
+		return
+	fi
 	# Read current from disk
 	_SECTION_READ=$(awk '/BEGIN_SHELLRC/,/END_SHELLRC/{print $0}' "$_FILE")
+	if ! test -w "$CONFIGFILE"; then
+		echo "No write permission: $CONFIGFILE"
+		return
+	fi
 	# Create if no SHELLRC section is found
 	if test -z "$_SECTION_READ"; then
 		_shellrc_debug_echo "... creating SHELLRC section in $_FILE."
