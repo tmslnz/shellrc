@@ -261,7 +261,13 @@ shellrc_autoupdate() {
 	fi
 	if test "$(_shellrc_get_lastmod_elapsed_s "$SHELLRC_CONFIG_DIR/last-check")" -gt 86400; then
 		_shellrc_update
+		_shellrc_cleanup
 	fi
+}
+
+_shellrc_cleanup() {
+	_shellrc_config
+	rm -rf "$SHELLRC_CONFIG_DIR/bootstrap-pyenv"
 }
 
 # ******************************************************************************
