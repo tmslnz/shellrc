@@ -902,17 +902,10 @@ configure_pyenv() {
 	_shellrc_config
 	export PYENV_ROOT="$HOME/.pyenv"
 	_shellrc_append_PATH "$PYENV_ROOT/bin"
-	BOOTSTRAP_FILE="$SHELLRC_CONFIG_DIR/bootstrap-pyenv"
-	if test ! -f "$BOOTSTRAP_FILE"; then
-		pyenv init - >"$BOOTSTRAP_FILE"
-	elif test "$(_shellrc_get_lastmod_elapsed_s "$BOOTSTRAP_FILE")" -gt 604800; then
-		pyenv init - >"$BOOTSTRAP_FILE"
-	fi
-	. "$BOOTSTRAP_FILE"
+	eval "$(pyenv init -)"
 	_shellrc_command brew && alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 	# Plugins
 	eval "$(pyenv virtualenv-init - >/dev/null 2>&1)" || true
-	unset BOOTSTRAP_FILE GENERATED
 }
 
 configure_direnv() {
