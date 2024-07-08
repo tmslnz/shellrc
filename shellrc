@@ -1822,7 +1822,7 @@ make_utility_functions() {
 		sudo sh -c "echo '$CONFIG' > /etc/sudoers.d/shellrc"
 	}
 
-	remove_host_key_at_line() {
+	ssh_remove_known_host_line() {
 		test "$#" -eq 1 || return 0
 		sed "$1d" ~/.ssh/known_hosts >~/.ssh/known_hosts.sed
 		mv -- ~/.ssh/known_hosts.sed ~/.ssh/known_hosts
