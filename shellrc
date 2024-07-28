@@ -2248,6 +2248,7 @@ make_utility_functions() {
 		defaults write com.apple.Safari "IncludeDevelopMenu" -bool "true"
 		defaults write com.apple.Safari "WebKitDeveloperExtrasEnabledPreferenceKey" -bool "true"
 		defaults write com.apple.Safari "com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled" -bool "true"
+		defaults write com.apple.Safari.SandboxBroker "ShowDevelopMenu" -bool "true"
 		defaults write com.apple.finder "ShowPathbar" -bool "true"
 		defaults write com.apple.finder "FXDefaultSearchScope" -string "SCcf"
 		defaults write com.apple.finder "FXEnableExtensionChangeWarning" -bool "false"
@@ -2268,10 +2269,20 @@ make_utility_functions() {
 		defaults write com.apple.mail "AddressesIncludeNameOnPasteboard" -bool "false"
 		defaults write com.googlecode.iterm2 "PromptOnQuit" -bool "false"
 		defaults write com.apple.TimeMachine "DoNotOfferNewDisksForBackup" -bool "true"
-		killall Finder
+		defaults write com.microsoft.office "OptionalConnectedExperiencesPreference" -bool 0;
+		defaults write com.microsoft.office "ShowDocStageOnLaunch" -bool 0;
+		defaults write com.microsoft.office "ShowFileExtensions" -bool 0;
+		defaults write com.microsoft.office "VBAObjectModelIsTrusted" -bool 0;
+		defaults write com.microsoft.office "VisualBasicMacroExecutionState" -string "DisabledWithWarnings";
+		defaults write com.microsoft.Word  "DisableCoAuthoringOnDocmFiles" -bool 0;
+		defaults write com.microsoft.Word  "DisableResumeAssistant" -bool 0;
+		defaults write com.microsoft.Word  "kMsoSuppressGrantAccessDialogKey" -bool 0;
+		defaults write com.microsoft.Word  "kPenAlwaysSelectsSettingChanged" -bool 1;
+		defaults write com.busymac.busycontacts "columnViewSort" -bool 1;
 		killall Safari
 		killall TextEdit
 		killall Xcode
+		killall Finder
 		killall Terminal
 	}
 
