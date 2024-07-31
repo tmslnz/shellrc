@@ -986,7 +986,8 @@ configure_aliases() {
 	_shellrc_is_darwin && alias lsregister="/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister"
 	# Docker container aliases
 	if _shellrc_command docker; then
-		alias photostructure="docker exec -u photostructure -it photostructure bash"
+		# https://forum.photostructure.com/t/files-in-ps-tmp-owned-by-root/1597/2
+		alias photostructure="docker exec -u node -it photostructure bash"
 	fi
 }
 
