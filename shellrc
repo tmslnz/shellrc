@@ -284,9 +284,10 @@ _shellrc_debug_echo() {
 
 _shellrc_verbose_echo() {
 	_shellrc_set_format_tokens
-	if test "$SHELLRC_VERBOSE" = true; then
-		echo "${_s_dim}${_s_bold}.shellrc - ${_s_reset}${_s_dim}${1:-}${_s_reset}"
-	fi
+	test -t 1 || return
+	test "$(tty)" != "not a tty" || return
+	test "$SHELLRC_VERBOSE" = true || return
+	echo "${_s_dim}${_s_bold}.shellrc - ${_s_reset}${_s_dim}${1:-}${_s_reset}"
 }
 
 _shellrc_command() {
