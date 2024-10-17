@@ -458,13 +458,23 @@ _shellrc_prepend_PATH() {
 }
 
 _shellrc_set_format_tokens() {
-	# https://misc.flogisoft.com/bash/tip_colors_and_formatting
+	# Early exit
 	test "${_s_bold:-}" && return
-	_s_reset=$(printf -- '\e[0m')
-	_s_bold=$(printf -- '\e[1m')
-	_s_dim=$(printf -- '\e[2m')
-	_s_underline=$(printf -- '\e[4m')
-	_s_bullet=$(printf -- '\xe2\x97\x8f')
+	# Only use format tokens when we should
+	if test -t 1 || test "$(tty)" != "not a tty" && test -z "${NO_COLOR:-}"; then
+		# https://misc.flogisoft.com/bash/tip_colors_and_formatting
+		_s_reset=$(printf -- '\e[0m')
+		_s_bold=$(printf -- '\e[1m')
+		_s_dim=$(printf -- '\e[2m')
+		_s_underline=$(printf -- '\e[4m')
+		_s_bullet=$(printf -- '\xe2\x97\x8f')
+	else
+		_s_reset=''
+		_s_bold=''
+		_s_dim=''
+		_s_underline=''
+		_s_bullet=''
+	fi
 	_s_user='\u'
 	_s_host='\h'
 	_s_directory='\w'
