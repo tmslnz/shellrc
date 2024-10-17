@@ -1,6 +1,8 @@
 #!/usr/bin/env sh
 #
 # Single-file environment configuration
+# Uses POSIX parameter expansion:
+#   https://pubs.opengroup.org/onlinepubs/9699919799/utilities/V3_chap02.html#tag_18_06_02
 # shellcheck disable=SC1090,SC1091,SC2262,SC2263
 #
 # time for i in {1..1000}; do command -and options; done;
