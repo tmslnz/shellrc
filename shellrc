@@ -1644,7 +1644,7 @@ configure_broot() {
 }
 
 configure_python() {
-	_shellrc_command python || return 0
+	_shellrc_command python || _shellrc_command python3 || return 0
 	_shellrc_debug_echo "configure_python()"
 	# shellcheck disable=SC2317
 	load_python_autovenv() {
