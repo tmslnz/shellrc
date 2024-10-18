@@ -90,37 +90,41 @@ main() {
 }
 
 shellrc() {
+	SHELLRC_VERBOSE_ORIG="$SHELLRC_VERBOSE"
+	SHELLRC_VERBOSE=true
 	if test -z "${1+x}"; then
 		_shellrc_help
-		return
+	else
+		while test $# -gt 0; do
+			case $1 in
+			update)
+				_shellrc_update
+				shift
+				;;
+			revert | restore)
+				_shellrc_revert
+				shift
+				;;
+			-h | --help | help)
+				_shellrc_help
+				shift
+				;;
+			--version | version)
+				_shellrc_get_version
+				shift
+				;;
+			-*)
+				echo "Unknown option $1"
+				;;
+			*)
+				# POSITIONAL_ARGS+=("$1") # save positional arg
+				shift
+				;;
+			esac
+		done
 	fi
-	while test $# -gt 0; do
-		case $1 in
-		update)
-			_shellrc_update
-			shift
-			;;
-		revert | restore)
-			_shellrc_revert
-			shift
-			;;
-		-h | --help | help)
-			_shellrc_help
-			shift
-			;;
-		--version | version)
-			_shellrc_get_version
-			shift
-			;;
-		-*)
-			echo "Unknown option $1"
-			;;
-		*)
-			# POSITIONAL_ARGS+=("$1") # save positional arg
-			shift
-			;;
-		esac
-	done
+	SHELLRC_VERBOSE="$SHELLRC_VERBOSE_ORIG"
+	unset SHELLRC_VERBOSE_ORIG
 }
 
 _shellrc_get_version() {
