@@ -285,9 +285,9 @@ _shellrc_debug_echo() {
 
 _shellrc_verbose_echo() {
 	_shellrc_set_format_tokens
-	test -t 1 || return
-	test "$(tty)" != "not a tty" || return
-	test "$SHELLRC_VERBOSE" = true || return
+	test -t 1 || return 0
+	test "$(tty)" != "not a tty" || return 0
+	test "$SHELLRC_VERBOSE" = true || return 0
 	echo "${_s_dim}${_s_bold}.shellrc - ${_s_reset}${_s_dim}${1:-}${_s_reset}"
 }
 
@@ -460,7 +460,7 @@ _shellrc_prepend_PATH() {
 
 _shellrc_set_format_tokens() {
 	# Early exit
-	test "${_s_bold:-}" && return
+	test "${_s_bold:-}" && return 0
 	# Only use format tokens when we should
 	if test -t 1 || test "$(tty)" != "not a tty" && test -z "${NO_COLOR:-}"; then
 		# https://misc.flogisoft.com/bash/tip_colors_and_formatting
