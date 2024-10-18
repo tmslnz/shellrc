@@ -17,7 +17,7 @@ test "${SHELLRC_SOURCED:-}" && return
 
 main() {
 	# Do nothing if running on a non-interactive shell
-	_shellrc_is_interactive || return
+	_shellrc_is_interactive || return 0
 	_shellrc_debug_echo "main()"
 	# Prevent sourcing more than once per session
 	_shellrc_verbose_echo "version $(_shellrc_get_version)"
@@ -154,7 +154,7 @@ _shellrc_is_login() {
 }
 
 _shellrc_config() {
-	test -n "${SHELLRC_CONFIG_DIR:-}" && return
+	test -n "${SHELLRC_CONFIG_DIR:-}" && return 0
 	mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
 	SHELLRC_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
 }
@@ -253,7 +253,7 @@ _shellrc_revert() {
 	SHELLRC_FILE=$(_shellrc_get_path)
 	SHELLRC_SNAPSHOT_DIR=$SHELLRC_CONFIG_DIR/snapshots
 	SHELLRC_SNAPSHOT=$(find "$SHELLRC_SNAPSHOT_DIR" -name '.shellrc-*' 2>/dev/null | tail -n 1)
-	test "${SHELLRC_SNAPSHOT:-}" || return
+	test "${SHELLRC_SNAPSHOT:-}" || return 0
 	if mv -f "$SHELLRC_SNAPSHOT" "$SHELLRC_FILE"; then
 		echo "... restored $SHELLRC_SNAPSHOT"
 	fi
@@ -903,7 +903,7 @@ configure_perlbrew() {
 		$HOME/.local/perlbrew
 		$HOME/local/perlbrew
 	EOF
-	test -z "${PB_ROOT:+x}" && return
+	test -z "${PB_ROOT:+x}" && return 0
 	_shellrc_debug_echo "configure_perlbrew()"
 	set +e +u
 	_shellrc_is_bash && . "$PB_ROOT/etc/bashrc"
