@@ -958,6 +958,7 @@ configure_pyenv() {
 	_shellrc_debug_echo "configure_pyenv()"
 	_shellrc_set_SHELLRC_CONFIG_DIR
 	export PYENV_ROOT="$HOME/.pyenv"
+	#TODO: fix when using MacPorts
 	_shellrc_append_PATH "$PYENV_ROOT/bin"
 	eval "$(pyenv init -)"
 	_shellrc_command brew && alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
