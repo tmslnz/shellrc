@@ -153,7 +153,7 @@ _shellrc_is_login() {
 	esac
 }
 
-_shellrc_config() {
+_shellrc_set_SHELLRC_CONFIG_DIR() {
 	test -n "${SHELLRC_CONFIG_DIR:-}" && return 0
 	mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
 	SHELLRC_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
@@ -218,7 +218,7 @@ _shellrc_update() {
 	_shellrc_command curl || return 0
 	_shellrc_verbose_echo "checking for update"
 	F="$HOME/.shellrc-tmp"
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	touch "$F"
 	# Find real .shellrc file if symlinked
 	SHELLRC_FILE=$(_shellrc_get_path)
@@ -230,7 +230,7 @@ _shellrc_update() {
 		unset F TS URL SHELLRC_SNAPSHOT_DIR
 		return 0
 	fi
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	touch "$SHELLRC_CONFIG_DIR/last-check"
 	if ! comm "$SHELLRC_FILE" "$F" >/dev/null 2>&1; then
 		_shellrc_verbose_echo "updating $SHELLRC_FILE"
@@ -249,7 +249,7 @@ _shellrc_update() {
 }
 
 _shellrc_revert() {
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	SHELLRC_FILE=$(_shellrc_get_path)
 	SHELLRC_SNAPSHOT_DIR=$SHELLRC_CONFIG_DIR/snapshots
 	SHELLRC_SNAPSHOT=$(find "$SHELLRC_SNAPSHOT_DIR" -name '.shellrc-*' 2>/dev/null | tail -n 1)
@@ -261,7 +261,7 @@ _shellrc_revert() {
 }
 
 shellrc_autoupdate() {
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	test "$SHELLRC_UPDATECHECK" = false && return
 	if ! test -f "$SHELLRC_CONFIG_DIR/last-check"; then
 		touch "$SHELLRC_CONFIG_DIR/last-check"
@@ -273,7 +273,7 @@ shellrc_autoupdate() {
 }
 
 _shellrc_cleanup() {
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	rm -rf "$SHELLRC_CONFIG_DIR/bootstrap-pyenv"
 }
 
@@ -956,7 +956,7 @@ configure_pyenv() {
 	_shellrc_is_windows && return
 	test -d "$HOME/.pyenv/bin" || _shellrc_command pyenv || return 0
 	_shellrc_debug_echo "configure_pyenv()"
-	_shellrc_config
+	_shellrc_set_SHELLRC_CONFIG_DIR
 	export PYENV_ROOT="$HOME/.pyenv"
 	_shellrc_append_PATH "$PYENV_ROOT/bin"
 	eval "$(pyenv init -)"
