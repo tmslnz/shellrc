@@ -37,11 +37,11 @@ main() {
 		fi
 	done <<-'EOF'
 		configure_locale
+		configure_PATH
 		configure_bash
 		configure_zsh
 		configure_PS1
 		configure_editor
-		configure_PATH
 		configure_shell
 		configure_darwin
 		configure_posix
