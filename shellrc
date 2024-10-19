@@ -287,10 +287,15 @@ _shellrc_debug_echo() {
 	echo "$1"
 }
 
-_shellrc_verbose_echo() {
-	_shellrc_set_format_tokens
+_shellrc_can_echo() {
 	test -t 1 || return 0
 	test "$(tty)" != "not a tty" || return 0
+	return 1
+}
+
+_shellrc_verbose_echo() {
+	_shellrc_maybe_set_format_tokens
+	test _shellrc_can_echo || return 0
 	test "$SHELLRC_VERBOSE" = true || return 0
 	echo "${_s_dim}${_s_bold}.shellrc - ${_s_reset}${_s_dim}${1:-}${_s_reset}"
 }
