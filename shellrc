@@ -1037,7 +1037,7 @@ configure_nano() {
 	elif test "$BREW_PREFIX"; then
 		echo "Run:"
 		echo "$ brew install nano nanorc"
-		false; return
+		return 0
 	elif test -d ~/.nano/nanorc; then
 		NANORC_DIR=~/.nano/nanorc
 	elif test -d /usr/share/nano; then
@@ -1047,7 +1047,7 @@ configure_nano() {
 	elif test -d /etc/nanorc; then
 		NANORC_DIR="/etc/nanorc"
 	else
-		false; return
+		return 0
 	fi
 	make_nanorc_paths() {
 		find -L "$NANORC_DIR" -maxdepth 1 -type f -print0 | xargs -0 printf 'include "%s"\n'
