@@ -332,6 +332,12 @@ _shellrc_is_bash() {
 	test "${BASH_VERSION:-}"
 }
 
+_shellrc_is_modern_bash() {
+	test _shellrc_is_bash || return 1
+	test "$(printf %.1s "$BASH_VERSION")" -ge 4 && return
+	return 1
+}
+
 _shellrc_is_zsh() {
 	test "${ZSH_VERSION:-}"
 }
@@ -664,7 +670,7 @@ configure_bash() {
 	_shellrc_debug_echo "configure_bash()"
 
 	# Create init files
-	if test "$(printf %.1s "$BASH_VERSION")" -lt 4; then
+	if ! _shellrc_is_modern_bash; then
 		echo "You are using a very old version of Bash: $BASH_VERSION"
 		if _shellrc_command brew; then
 			echo "Please run:"
@@ -861,7 +867,7 @@ configure_zsh() {
 configure_fzf() {
 	_shellrc_command fzf || return 0
 	_shellrc_debug_echo "configure_fzf()"
-	if _shellrc_is_bash; then
+	if _shellrc_is_modern_bash; then
 		eval "$(fzf --bash 2>/dev/null)"
 	elif _shellrc_is_zsh; then
 		eval "$(fzf --zsh 2>/dev/null)"
