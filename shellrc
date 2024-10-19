@@ -322,15 +322,38 @@ _shellrc_is_windows() {
 	uname | awk '{print tolower($0)}' | awk '!/msys|cygwin|mingw/{exit 1}'
 }
 
-_shellrc_set_BREW_PREFIX() {
+_shellrc_maybe_set_BREW_PREFIX() {
 	# +x will give 'x' if the variable exists, even if empty.
 	if test -z ${BREW_PREFIX+x}; then
-		if _shellrc_command brew; then
-			BREW_PREFIX=$(brew --prefix)
+		if _shellrc_command brew ||
+			test -f "/usr/local/bin/brew" ||
+			test -f "/opt/homebrew/bin/brew" ||
+			test -f "/home/linuxbrew/.linuxbrew/bin/brew" ||
+			test -f "/home/linuxbrew/bin/brew"; then
+				BREW_PREFIX=$(brew --prefix)
 		else
 			BREW_PREFIX=''
 		fi
 	fi
+}
+
+_shellrc_maybe_set_MACPORTS_PREFIX() {
+	# +x will give 'x' if the variable exists, even if empty.
+	if test -z ${MACPORTS_PREFIX+x}; then
+		if _shellrc_command port || test -f "/opt/local/bin/port"; then
+			MACPORTS_PREFIX="/opt/local"
+		else
+			MACPORTS_PREFIX=''
+		fi
+	fi
+}
+
+_shellrc_maybe_set_PM_PREFIX() {
+	_shellrc_maybe_set_MACPORTS_PREFIX
+	if test "$MACPORTS_PREFIX"; then PM_PREFIX="$MACPORTS_PREFIX"; return; fi
+	_shellrc_maybe_set_BREW_PREFIX
+	if test "$BREW_PREFIX"; then PM_PREFIX="$BREW_PREFIX"; return; fi
+	PM_PREFIX=''
 }
 
 _shellrc_is_bash() {
@@ -473,11 +496,11 @@ _shellrc_prepend_PATH() {
 	if test -d "$1"; then export PATH="$1":"$PATH"; fi
 }
 
-_shellrc_set_format_tokens() {
+_shellrc_maybe_set_format_tokens() {
 	# Early exit
 	test "${_s_bold:-}" && return 0
 	# Only use format tokens when we should
-	if test -t 1 || test "$(tty)" != "not a tty" && test -z "${NO_COLOR:-}"; then
+	if _shellrc_can_echo && test -z "${NO_COLOR:-}"; then
 		# https://misc.flogisoft.com/bash/tip_colors_and_formatting
 		_s_reset=$(printf -- '\e[0m')
 		_s_bold=$(printf -- '\e[1m')
@@ -503,9 +526,9 @@ _shellrc_set_format_tokens() {
 }
 
 # shellcheck disable=SC2034
-_shellrc_set_PS1() {
-	_shellrc_debug_echo "_shellrc_set_PS1()"
-	_shellrc_set_format_tokens
+_shellrc_maybe_set_PS1() {
+	_shellrc_debug_echo "_shellrc_maybe_set_PS1()"
+	_shellrc_maybe_set_format_tokens
 	if ! _shellrc_is_smart_terminal; then
 		PS1='\u@\h > '
 		PROMPT='%n@%m > '
@@ -550,7 +573,7 @@ configure_locale() {
 
 configure_PS1() {
 	_shellrc_debug_echo "configure_PS1()"
-	_shellrc_set_PS1
+	_shellrc_maybe_set_PS1
 }
 
 # shellcheck disable=SC2317
@@ -560,7 +583,7 @@ configure_prompt() {
 		_shellrc_is_bash && history -a # Make history available all sessions
 		venv_auto 2>/dev/null || true
 		git_prompt 2>/dev/null || true
-		_shellrc_set_PS1
+		_shellrc_maybe_set_PS1
 	}
 	PROMPT_COMMAND="_shellrc_prompt_commands;${PROMPT_COMMAND:-}"
 	if _shellrc_is_zsh; then
@@ -574,7 +597,7 @@ configure_PATH() {
 	_shellrc_debug_echo "configure_PATH()"
 	set +f
 	# Homebrew
-	_shellrc_set_BREW_PREFIX
+	_shellrc_maybe_set_BREW_PREFIX
 	if test "$BREW_PREFIX"; then
 		_shellrc_prepend_PATH "$BREW_PREFIX/bin"
 		_shellrc_prepend_PATH "$BREW_PREFIX/sbin"
@@ -586,6 +609,12 @@ configure_PATH() {
 		# fi
 		# _shellrc_append_PATH "$BREW_PREFIX/opt/python/libexec/bin"
 		unset D
+	fi
+	# MacPorts
+	_shellrc_maybe_set_MACPORTS_PREFIX
+	if test "$MACPORTS_PREFIX"; then
+		_shellrc_prepend_PATH "$MACPORTS_PREFIX/bin"
+		_shellrc_prepend_PATH "$MACPORTS_PREFIX/sbin"
 	fi
 	# ~/bin/
 	_shellrc_append_PATH "$HOME/bin"
@@ -675,17 +704,10 @@ configure_bash() {
 	_shellrc_debug_echo "configure_bash()"
 
 	# Create init files
-	if ! _shellrc_is_modern_bash; then
+	if ! _shellrc_is_modern_bash && _shellrc_can_echo; then
 		echo "You are using a very old version of Bash: $BASH_VERSION"
-		if _shellrc_command brew; then
-			echo "Please run:"
-			echo "$ brew install bash"
-			echo "$ enable_homebrew_bash"
-		elif _shellrc_is_darwin; then
-			echo "$ Please install \"Homebrew\" from https://brew.sh"
-		else
-			echo "Please update Bash"
-		fi
+		echo "Please run:"
+		echo "$ enable_modern_bash"
 	fi
 	CONFIGFILE=$HOME/.bash_profile
 	{ CONFIG=$(cat); } <<-'EOF'
@@ -760,7 +782,7 @@ configure_bash() {
 	# shellcheck disable=SC3044
 	load_bash_completion() {
 		_shellrc_debug_echo "load_bash_completion()"
-		_shellrc_set_BREW_PREFIX
+		_shellrc_maybe_set_PM_PREFIX
 		# Possible bash-completion init scripts
 		while IFS= read -r line; do
 			if test -f "$line"; then
@@ -774,8 +796,8 @@ configure_bash() {
 			/etc/profile.d/bash_completion.sh
 			/etc/bash_completion
 			/sw/etc/bash_completion
-			$BREW_PREFIX/etc/profile.d/bash_completion.sh
-			$BREW_PREFIX/etc/bash_completion
+			$PM_PREFIX/etc/profile.d/bash_completion.sh
+			$PM_PREFIX/etc/bash_completion
 		EOF
 		complete -cf sudo
 		unset P
@@ -1036,10 +1058,11 @@ configure_ls() {
 configure_nano() {
 	_shellrc_command nano || return 0
 	_shellrc_debug_echo "configure_nano()"
-	_shellrc_set_BREW_PREFIX
-	if test "$BREW_PREFIX" && test -d "$BREW_PREFIX/share/nanorc"; then
-		NANORC_DIR="$BREW_PREFIX/share/nanorc"
-	elif test "$BREW_PREFIX"; then
+	_shellrc_maybe_set_PM_PREFIX
+	# case
+	if test "$PM_PREFIX" && test -d "$PM_PREFIX/share/nanorc"; then
+		NANORC_DIR="$PM_PREFIX/share/nanorc"
+	elif test "$PM_PREFIX"; then
 		echo "Run:"
 		echo "$ brew install nano nanorc"
 		return 0
@@ -1531,7 +1554,7 @@ configure_git() {
 		done
 		SHELLRC_PROMPT_GIT=""
 		if test -e "$base/.git"; then
-			_shellrc_set_format_tokens
+			_shellrc_maybe_set_format_tokens
 			branch_name=$(git symbolic-ref -q HEAD)
 			branch_name=${branch_name##refs/heads/}
 			branch_name=${branch_name:-HEAD}
@@ -1752,16 +1775,17 @@ configure_sdkman() {
 configure_automysqlbackup() {
 	_shellrc_command automysqlbackup || return 0
 	_shellrc_debug_echo "configure_automysqlbackup()"
-	_shellrc_set_BREW_PREFIX
+	_shellrc_maybe_set_PM_PREFIX
 	mkdir -p "$HOME/.automysqlbackup/backups"
-	if test -f "$BREW_PREFIX/etc/automysqlbackup/myserver.conf"; then
-		CONFIGFILE="$BREW_PREFIX/etc/automysqlbackup/myserver.conf"
-	elif test -f "$BREW_PREFIX/etc/automysqlbackup/automysqlbackup.conf"; then
-		CONFIGFILE="$BREW_PREFIX/etc/automysqlbackup/automysqlbackup.conf"
+	if test -f "$PM_PREFIX/etc/automysqlbackup/myserver.conf"; then
+		CONFIGFILE="$PM_PREFIX/etc/automysqlbackup/myserver.conf"
+	elif test -f "$PM_PREFIX/etc/automysqlbackup/automysqlbackup.conf"; then
+		CONFIGFILE="$PM_PREFIX/etc/automysqlbackup/automysqlbackup.conf"
 	else
 		CONFIGFILE=~/.config/automysqlbackup/automysqlbackup.conf
 	fi
 	{ CONFIG=$(cat); } <<-EOF
+		#version=3.0_rc2
 		# BEGIN_SHELLRC
 		CONFIG_mysql_dump_username='root'
 		CONFIG_mysql_dump_password='root'
@@ -1982,21 +2006,34 @@ make_utility_functions() {
 			'
 	}
 
-	_shellrc_command brew && enable_homebrew_bash() {
-		_shellrc_set_BREW_PREFIX
-		test "$(printf %.1s "$BASH_VERSION")" -lt 4 &&
-			echo "Please run:"
-		test -f "$BREW_PREFIX/bin/bash" ||
-			echo "$  brew install bash"
-		grep -Fxq "$BREW_PREFIX/bin/bash" /etc/shells ||
-			echo "$  echo \"\$(brew --prefix)/bin/bash\" | sudo tee -a /etc/shells"
-		test "$(printf %.1s "$BASH_VERSION")" -lt 4 &&
-			echo "$  chsh -s \"\$(brew --prefix)/bin/bash\""
+	enable_modern_bash() {
+		_shellrc_maybe_set_PM_PREFIX
+		if ! _shellrc_is_modern_bash; then
+			if test -f "$PM_PREFIX/bin/bash"; then
+				true
+			elif _shellrc_is_darwin; then
+				if ! _shellrc_command port || ! _shellrc_command brew; then
+					echo "Please install a package manager like https://macports.org or https://brew.sh"
+				elif _shellrc_command port; then
+					echo "$ sudo port install bash"
+				elif _shellrc_command brew; then
+					echo "$ brew install bash"
+				fi
+			elif _shellrc_command brew; then
+				echo "$ brew install bash"
+			else
+				echo "Please update Bash using your package manager"
+			fi
+		fi
+		grep -Fxq "$PM_PREFIX/bin/bash" /etc/shells ||
+			echo "$ echo \"$PM_PREFIX/bin/bash\" | sudo tee -a /etc/shells"
+		test _shellrc_is_modern_bash &&
+			echo "$ chsh -s \"$PM_PREFIX/bin/bash\""
 	}
 
-	_shellrc_command brew && disable_homebrew_bash() {
+	disable_modern_bash() {
 		echo "Run:"
-		echo "  chsh -s /bin/bash"
+		echo "$ chsh -s /bin/bash"
 	}
 
 	_shellrc_command nebula && configure_nebula() {
@@ -2006,8 +2043,8 @@ make_utility_functions() {
 			false; return
 		fi
 		PREFIX=''
-		_shellrc_set_BREW_PREFIX
-		for loc in "$BREW_PREFIX/etc" "$HOME/.config" "$HOME/.local" "$HOME/local"; do
+		_shellrc_maybe_set_PM_PREFIX
+		for loc in "$HOME/.config" "$HOME/.local" "$HOME/local" "$PM_PREFIX/etc"; do
 			if test -d "$loc/nebula"; then
 				PREFIX=$loc/nebula
 				unset loc
