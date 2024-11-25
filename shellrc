@@ -325,12 +325,16 @@ _shellrc_is_windows() {
 _shellrc_maybe_set_BREW_PREFIX() {
 	# +x will give 'x' if the variable exists, even if empty.
 	if test -z ${BREW_PREFIX+x}; then
-		if _shellrc_command brew ||
-			test -f "/usr/local/bin/brew" ||
-			test -f "/opt/homebrew/bin/brew" ||
-			test -f "/home/linuxbrew/.linuxbrew/bin/brew" ||
-			test -f "/home/linuxbrew/bin/brew"; then
-				BREW_PREFIX=$(brew --prefix)
+		if _shellrc_command brew; then
+			BREW_PREFIX=$(brew --prefix)
+		elif test -f "/usr/local/bin/brew"; then
+			BREW_PREFIX="/usr/local"
+		elif test -f "/opt/homebrew/bin/brew"; then
+			BREW_PREFIX="/opt/homebrew"
+		elif test -f "/home/linuxbrew/.linuxbrew/bin/brew"; then
+			BREW_PREFIX="/home/linuxbrew/.linuxbrew"
+		elif test -f "/home/linuxbrew/bin/brew"; then
+			BREW_PREFIX="/home/linuxbrew"
 		else
 			BREW_PREFIX=''
 		fi
