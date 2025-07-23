@@ -24,7 +24,7 @@ main() {
 	# Set options and store them
 	set -e # Exit on error
 	set -u # Exit on unbound variable
-	set -f # Disable filname expansion (*,?,[...])
+	set -f # Disable filename expansion (*,?,[...])
 	_SHELLRC_OPTIONS=$-
 	FUNCTIONS=""
 	while IFS= read -r line; do
