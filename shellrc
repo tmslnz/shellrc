@@ -1926,7 +1926,7 @@ make_utility_functions() {
 		unset tempdir
 	}
 
-	_shellrc_command git && git_normailze_eol() {
+	_shellrc_command git && git_normalize_eol() {
 		# https://stackoverflow.com/a/4683783
 		while test ! -e ./.git; do
 			curr=$(pwd)
