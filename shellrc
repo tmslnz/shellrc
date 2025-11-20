@@ -803,7 +803,6 @@ configure_bash() {
 			$PM_PREFIX/etc/bash_completion
 		EOF
 		complete -cf sudo
-		unset P
 	}
 	set_bash_options
 	load_bash_completion
