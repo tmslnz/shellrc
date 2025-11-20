@@ -412,7 +412,7 @@ _shellrc_command_has_option() {
 			HELPSTACK=$(printf "%s\n%s" "$(info "$1" 2>/dev/null)" "$HELPSTACK")
 		fi
 	fi
-	test "$HELPSTACK:-" || return
+	test "${HELPSTACK:-}" || return
 	eval "_options_cache_$1"=\$HELPSTACK
 	case "$HELPSTACK" in
 	*"$2"*)
