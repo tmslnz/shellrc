@@ -1671,7 +1671,7 @@ configure_ssh() {
 			. "${SSH_ENV}" >/dev/null
 			# `ps ${SSH_AGENT_PID}` doesn't work under cywgin
 			# shellcheck disable=SC2009
-			ps -ef | grep -q "${SSH_AGENT_PID}" | grep -q ssh-agent$ || start_agent
+			ps -ef | grep "${SSH_AGENT_PID}" | grep -q 'ssh-agent$' || start_agent
 		else
 			start_agent
 		fi
