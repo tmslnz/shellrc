@@ -2443,7 +2443,7 @@ make_utility_functions() {
 
 sudosudo() {
 	_shellrc_todo
-	sudo bash -ic ". $HOME/.shellrc; eval $*"
+	sudo bash -ic ". $HOME/.shellrc; \"\$@\"" -- "$@"
 }
 
 main
