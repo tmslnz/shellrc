@@ -1731,21 +1731,20 @@ configure_python() {
 				PS1=$(echo "${PS1:-}" | sed 's/(.venv) //g')
 			fi
 		}
-		_venv_candidates() {
-			echo "$1/.venv"
-			echo "$1/.env"
-		}
 		_venv_find() {
 			venv_root=.
 			j=0
 			while test "$j" -le 5; do
 				venv_real="$(cd "$venv_root" && pwd -P)"
-				printf '%s' "$(_venv_candidates "$venv_real")" | while read -r line; do
-					if test -f "$line/bin/activate"; then
-						cd "$line" && pwd -P
+
+				# Check both .venv and .env directly without pipeline
+				for candidate in "$venv_real/.venv" "$venv_real/.env"; do
+					if test -f "$candidate/bin/activate"; then
+						(cd "$candidate" && pwd -P)
 						return
 					fi
 				done
+
 				test "$venv_real" = "/" && break
 				venv_root="${venv_root}/.."
 				j=$((j + 1))
