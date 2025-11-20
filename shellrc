@@ -323,7 +323,7 @@ _shellrc_is_windows() {
 
 _shellrc_maybe_set_BREW_PREFIX() {
 	# +x will give 'x' if the variable exists, even if empty.
-	if test -z ${BREW_PREFIX+x}; then
+	if test -z "${BREW_PREFIX+x}"; then
 		if _shellrc_command brew; then
 			BREW_PREFIX=$(brew --prefix)
 		elif test -f "/usr/local/bin/brew"; then
@@ -342,7 +342,7 @@ _shellrc_maybe_set_BREW_PREFIX() {
 
 _shellrc_maybe_set_MACPORTS_PREFIX() {
 	# +x will give 'x' if the variable exists, even if empty.
-	if test -z ${MACPORTS_PREFIX+x}; then
+	if test -z "${MACPORTS_PREFIX+x}"; then
 		if _shellrc_command port || test -f "/opt/local/bin/port"; then
 			MACPORTS_PREFIX="/opt/local"
 		else
