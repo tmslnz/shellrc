@@ -1930,7 +1930,7 @@ make_utility_functions() {
 		# https://stackoverflow.com/a/4683783
 		while test ! -e ./.git; do
 			curr=$(pwd)
-			test "$curr" = '/' -o "$curr" = '//' && break
+			{ test "$curr" = '/' || test "$curr" = '//'; } && break
 			cd ..
 		done
 		test -e "$(pwd)/.git" || return 0
@@ -1970,7 +1970,7 @@ make_utility_functions() {
 	_shellrc_command git && git_freeze_submodule() {
 		while test ! -e ./.git; do
 			curr=$(pwd)
-			test "$curr" = '/' -o "$curr" = '//' && break
+			{ test "$curr" = '/' || test "$curr" = '//'; } && break
 			cd ..
 		done
 		test -e "$(pwd)/.git" || return 0
