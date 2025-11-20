@@ -233,7 +233,7 @@ _shellrc_update() {
 	fi
 	_shellrc_set_SHELLRC_CONFIG_DIR
 	touch "$SHELLRC_CONFIG_DIR/last-check"
-	if ! comm "$SHELLRC_FILE" "$F" >/dev/null 2>&1; then
+	if ! cmp -s "$SHELLRC_FILE" "$F"; then
 		_shellrc_verbose_echo "updating $SHELLRC_FILE"
 		TS=$(date -u +"%Y-%m-%dT%H%M%S")
 		mkdir -p "$SHELLRC_SNAPSHOT_DIR"
