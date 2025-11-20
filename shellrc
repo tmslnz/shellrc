@@ -973,7 +973,7 @@ configure_direnv() {
 	_shellrc_command direnv || return 0
 	_shellrc_debug_echo "configure_direnv()"
 	_shellrc_is_bash && eval "$(direnv hook bash || true)" && return
-	_shellrc_is_zsh && eval "$(direnv hook bash || true)" && return
+	_shellrc_is_zsh && eval "$(direnv hook zsh || true)" && return
 }
 
 configure_shdotenv() {
