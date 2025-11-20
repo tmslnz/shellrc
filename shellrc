@@ -364,7 +364,7 @@ _shellrc_is_bash() {
 }
 
 _shellrc_is_modern_bash() {
-	test _shellrc_is_bash || return 1
+	_shellrc_is_bash || return 1
 	test "$(printf %.1s "$BASH_VERSION")" -ge 4 && return
 	return 1
 }
