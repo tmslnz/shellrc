@@ -352,6 +352,9 @@ _shellrc_maybe_set_MACPORTS_PREFIX() {
 }
 
 _shellrc_maybe_set_PM_PREFIX() {
+	# Return early if already set
+	test "${PM_PREFIX:-}" && return 0
+
 	_shellrc_maybe_set_MACPORTS_PREFIX
 	if test "$MACPORTS_PREFIX"; then PM_PREFIX="$MACPORTS_PREFIX"; return; fi
 	_shellrc_maybe_set_BREW_PREFIX
