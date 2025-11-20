@@ -1561,12 +1561,16 @@ configure_git() {
 			branch_name=$(git symbolic-ref -q HEAD)
 			branch_name=${branch_name##refs/heads/}
 			branch_name=${branch_name:-HEAD}
-			case $(git status 2>/dev/null | tail -n1) in
+
+			# Cache git status output to avoid calling it twice
+			git_status_output=$(git status 2>/dev/null)
+
+			case $(echo "$git_status_output" | tail -n1) in
 			*"nothing to commit"*)
 				SHELLRC_PROMPT_GIT="${_s_dim}git:${_s_underline}${branch_name}${_s_reset} "
 				;;
 			*)
-				case $(git status 2>/dev/null | head -n5) in
+				case $(echo "$git_status_output" | head -n5) in
 				*"Changes to be committed"*)
 					SHELLRC_PROMPT_GIT="${_s_dim}git:${_s_underline}${branch_name}${_s_reset}${_s_dim}(staged)${_s_reset} "
 					;;
@@ -1576,6 +1580,7 @@ configure_git() {
 				esac
 				;;
 			esac
+			unset git_status_output
 		fi
 	}
 	unset CONFIG CONFIGFILE
