@@ -1881,7 +1881,7 @@ make_utility_functions() {
 		elif _shellrc_command dscl; then
 			dscl . -read users/"$USR" NFSHomeDirectory 2>/dev/null | awk '{print $2}'
 		else
-			false; return
+			return 1
 		fi
 	}
 
@@ -1997,7 +1997,7 @@ make_utility_functions() {
 		SUBMODULE="$1"
 		if test -z "$SUBMODULE"; then
 			echo "Missing submodule path. Aborting."
-			false; return
+			return 1
 		fi
 		if git diff-index --quiet --cached HEAD -- &&
 			git diff-files --quiet &&
@@ -2063,7 +2063,7 @@ make_utility_functions() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
 			echo "$ sudosudo configure_nebula"
-			false; return
+			return 1
 		fi
 		PREFIX=''
 		_shellrc_maybe_set_PM_PREFIX
@@ -2151,7 +2151,7 @@ make_utility_functions() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
 			echo "$ sudosudo configure_dnsmasq"
-			false; return
+			return 1
 		fi
 		CONFIGFILE=/etc/dnsmasq.conf
 		{ CONFIG=$(cat); } <<-EOF
@@ -2243,7 +2243,7 @@ make_utility_functions() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
 			echo "$ sudosudo cleanup_macos"
-			false; return
+			return 1
 		fi
 		## XCode and CLI Tools
 		##
@@ -2282,7 +2282,7 @@ make_utility_functions() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
 			echo "$ sudosudo configure_macos"
-			false; return
+			return 1
 		fi
 		_shellrc_is_darwin || return 0
 		# OG:
@@ -2381,7 +2381,7 @@ make_utility_functions() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
 			echo "$ sudosudo configure_macos_substitutions"
-			false; return
+			return 1
 		fi
 		# https://apple.stackexchange.com/a/465487
 		{ CONFIG=$(cat); } <<-EOF
