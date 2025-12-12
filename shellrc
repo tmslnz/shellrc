@@ -28,7 +28,7 @@ main() {
 	_SHELLRC_OPTIONS=$-
 	FUNCTIONS=""
 	while IFS= read -r line; do
-		FUNCTIONS=$(printf "$line\n%s" "$FUNCTIONS")
+		FUNCTIONS=$(printf '%s\n%s' "$line" "$FUNCTIONS")
 		if test "$SHELLRC_DEBUG" = true; then
 			printf "\n\nTime for: %s\n" "$line"
 			time "$line"
