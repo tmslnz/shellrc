@@ -1103,7 +1103,10 @@ configure_nano() {
 		return 0
 	fi
 	make_nanorc_paths() {
-		find -L "$NANORC_DIR" -maxdepth 1 -type f -print0 | xargs -0 printf 'include "%s"\n'
+		if test -d "$NANORC_DIR"; then
+			find -L "$NANORC_DIR" -maxdepth 1 -type f -print0 2>/dev/null |
+				xargs -0 -r printf 'include "%s"\n'
+		fi
 	}
 	maybe_set() {
 		_shellrc_command_has_option nano "$1" && echo "set $1"
