@@ -1733,6 +1733,7 @@ configure_uv() {
 	_shellrc_debug_echo "configure_uv()"
 
 	# Enable completion only if not already loaded
+	# shellcheck disable=SC3044
 	if _shellrc_is_bash && ! complete -p uv >/dev/null 2>&1; then
 		eval "$(uv generate-shell-completion bash 2>/dev/null || true)"
 	elif _shellrc_is_zsh && ! type _uv >/dev/null 2>&1; then
