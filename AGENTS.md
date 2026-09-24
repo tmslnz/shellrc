@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`shellrc` is the entire product: a single ~2500-line POSIX `sh` script installed to `~/.shellrc`. There is no build, package manager, or test suite. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility.
+`shellrc` is the entire product: a single-file POSIX `sh` script installed to `~/.shellrc`. There is no build, package manager, or test suite. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility. `sh` compatibility is a requirement for any function on the hot path, so that this script can run on more restricted shells.
 
 ## Verify changes
 - `shellcheck shellrc` — primary linter. Pre-existing error SC2328/SC2327 at `shellrc:990` (`pyenv virtualenv-init` redirect) is known; do not "fix" it blindly.
