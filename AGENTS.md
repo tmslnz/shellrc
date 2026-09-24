@@ -29,5 +29,5 @@
 ## Gotchas
 - `_shellrc_get_version` uses `date -r`, a BSD/macOS form.
 - `_shellrc_command_has_option <cmd> <opt>` caches scraped help text in `_options_cache_<cmd>`.
-- `.shellrc` guards re-sourcing with `SHELLRC_SOURCED`; the updater resets it to `false` before re-sourcing.
+- `.shellrc` guards re-sourcing with `SHELLRC_SOURCED` (any non-empty value returns); the updater unsets it before re-sourcing so the new file runs `main()` in the current shell.
 - `configure_darwin`/`configure_linux` are Darwin/Linux-only branches; respect OS guards rather than assuming one platform.

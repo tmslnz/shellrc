@@ -253,7 +253,7 @@ _shellrc_update() {
 		mv "$SHELLRC_FILE" "$SHELLRC_SNAPSHOT_DIR/$(basename "$SHELLRC_FILE")-$TS" >/dev/null 2>&1
 		cat "$F" >"$SHELLRC_FILE"
 		unset _SHELLRC_REVISION
-		export SHELLRC_SOURCED=false
+		unset SHELLRC_SOURCED
 		. "$SHELLRC_FILE"
 	else
 		_shellrc_verbose_echo "no updates available"
