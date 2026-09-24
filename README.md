@@ -53,7 +53,7 @@ The execution flow is controlled in `main()`.
 
 The script writes all configurations conditionally (i.e: `x in PATH`, `OS == Darwin`) and only within "fenced" sections (e.g. `BEGIN_SHELLRC [...] END_SHELLRC`).
 Local changes _outside_ of a fenced section are never over-written.
-Local changes _within_ a fenced section are also not overwritten if the edits are more recent than the `~/.shellrc` file's last updated timestamp.
+Fenced sections are stamped with a content-hash revision marker of `~/.shellrc`; a section is only rewritten when that hash changes. Local changes _within_ a fenced section are therefore eventually overwritten by an update.
 
 ## Supported Tools
 

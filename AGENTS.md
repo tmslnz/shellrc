@@ -20,7 +20,8 @@
 
 ## Config-writing behavior
 - `_shellrc_upsert_section` only touches content between `# BEGIN_SHELLRC` / `# END_SHELLRC` fences; markers must end the line (matched by `/BEGIN_SHELLRC[ \t]*$/`).
-- It **skips** rewriting a section if the destination file is newer than `~/.shellrc` (`find "$_FILE" -newer "$(_shellrc_get_path)"`). Editing a generated file then re-sourcing may not overwrite it until the `.shellrc` timestamp is newer.
+- Each fenced section is stamped with a `shellrc-revision: <cksum>` line (CRC + byte count of `~/.shellrc`; see `_shellrc_get_revision`). A section is skipped when its stamp matches the current revision, otherwise it is rewritten. The old mtime guard (`find "$_FILE" -newer ...`) was removed, so edits inside a fence are preserved only until the revision changes.
+- `_shellrc_get_revision` caches in `_SHELLRC_REVISION`; `_shellrc_update` unsets it before re-sourcing so the new content is hashed.
 - `configure_bash`/`configure_zsh`/etc. append or prepend the fenced block depending on whether one already exists; existing user settings outside the fence are preserved.
 - Runtime dir is `${XDG_CONFIG_HOME:-$HOME/.config}/shellrc`; snapshots go to `.../snapshots`. Auto-update runs at most every 24h.
 - `shellrc update` / `shellrc revert` are the only user commands (see `shellrc()` dispatcher and `README.md`).
