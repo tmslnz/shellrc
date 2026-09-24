@@ -252,6 +252,7 @@ _shellrc_update() {
 		mkdir -p "$SHELLRC_SNAPSHOT_DIR"
 		mv "$SHELLRC_FILE" "$SHELLRC_SNAPSHOT_DIR/$(basename "$SHELLRC_FILE")-$TS" >/dev/null 2>&1
 		cat "$F" >"$SHELLRC_FILE"
+		unset _SHELLRC_REVISION
 		export SHELLRC_SOURCED=false
 		. "$SHELLRC_FILE"
 	else
@@ -464,13 +465,30 @@ _shellrc_upsert_section() {
 		echo "No write permission: $_FILE" >&2
 		return 1
 	fi
-	# Read current section (match only clean lines)
-	_SECTION_READ=$(awk '/BEGIN_SHELLRC[ \t]*$/,/END_SHELLRC[ \t]*$/' "$_FILE")
+	_shellrc_get_revision >/dev/null
+	_REVISION=$_SHELLRC_REVISION
+	# Abort if the section is already at the current revision
+	if grep -qF "shellrc-revision: $_REVISION" "$_FILE" 2>/dev/null; then
+		_shellrc_debug_echo "... SHELLRC section in $_FILE is current."
+		unset _SECTION _FILE _APPEND _REVISION
+		return 0
+	fi
+	# Stamp the section with the current revision, using the comment
+	# syntax of its BEGIN_SHELLRC line
+	_SECTION=$(printf '%s\n' "$_SECTION" | awk -v v="$_REVISION" '
+		{
+			print
+			if (!done && $0 ~ /BEGIN_SHELLRC[ \t]*$/) {
+				pre = $0
+				sub(/BEGIN_SHELLRC[ \t]*$/, "", pre)
+				print pre "shellrc-revision: " v
+				done = 1
+			}
+		}')
 	# Create if no section exists
-	if test -z "$_SECTION_READ"; then
+	if ! grep -qE 'BEGIN_SHELLRC[[:space:]]*$' "$_FILE" 2>/dev/null; then
 		_shellrc_debug_echo "... creating SHELLRC section in $_FILE."
 		_TEMPFILE="$(mktemp "${_FILE}.XXXXXX")" || return 1
-
 		if test "$_APPEND" = 'append'; then
 			cat "$_FILE" >"$_TEMPFILE" || return 1
 			printf '%s\n' "$_SECTION" >>"$_TEMPFILE" || return 1
@@ -479,17 +497,10 @@ _shellrc_upsert_section() {
 			cat "$_FILE" >>"$_TEMPFILE" || return 1
 		fi
 		mv "$_TEMPFILE" "$_FILE" || return 1
-	# Abort if section is unchanged
-	elif test "$_SECTION_READ" = "$_SECTION"; then
-		_shellrc_debug_echo "... SHELLRC section in $_FILE is unchanged."
-	# Abort if destination modified more recently than .shellrc
-	elif test -n "$(find "$_FILE" -newer "$(_shellrc_get_path)" 2>/dev/null)"; then
-		_shellrc_debug_echo "... SHELLRC section in $_FILE has recent edits. Aborting."
 	# Update section
 	else
 		_shellrc_debug_echo "... updating SHELLRC section in $_FILE"
 		_TEMPFILE="$(mktemp "${_FILE}.XXXXXX")" || return 1
-
 		awk '
 			BEGIN { sv=ARGV[1]; delete ARGV[1] }
 			/BEGIN_SHELLRC[ \t]*$/ { print sv; section=1; next }
@@ -497,10 +508,9 @@ _shellrc_upsert_section() {
 			section { next }
 			{ print }
 		' "$_SECTION" "$_FILE" >"$_TEMPFILE" || { rm -f "$_TEMPFILE"; return 1; }
-
 		mv "$_TEMPFILE" "$_FILE" || return 1
 	fi
-	unset _SECTION _SECTION_READ _FILE _APPEND _TEMPFILE
+	unset _SECTION _FILE _APPEND _REVISION _TEMPFILE
 }
 
 _shellrc_append_PATH() {
