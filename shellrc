@@ -987,7 +987,7 @@ configure_pyenv() {
 	eval "$(pyenv init -)"
 	_shellrc_command brew && alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 	# Plugins
-	eval "$(pyenv virtualenv-init - >/dev/null 2>&1)" || true
+	eval "$(pyenv virtualenv-init - 2>/dev/null)" || true
 }
 
 configure_direnv() {
