@@ -132,6 +132,18 @@ _shellrc_get_version() {
 	date -r ~/.shellrc -u "+%FT%TZ"
 }
 
+_shellrc_get_revision() {
+	if test -n "${_SHELLRC_REVISION:-}"; then
+		printf "%s" "$_SHELLRC_REVISION"
+		return 0
+	fi
+	# Content hash of the sourced file: POSIX cksum CRC + byte count
+	# shellcheck disable=SC2046
+	set -- $(cksum ~/.shellrc 2>/dev/null || printf "unknown 0")
+	_SHELLRC_REVISION="${1:-unknown}-${2:-0}"
+	printf "%s" "$_SHELLRC_REVISION"
+}
+
 _shellrc_restore_options() {
 	case "${_SHELLRC_OPTIONS:-}" in
 	*e*) set -e ;;
