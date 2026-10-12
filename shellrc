@@ -962,11 +962,11 @@ configure_zoxide() {
 	_shellrc_command zoxide || return 0
 	_shellrc_debug_echo "configure_zoxide()"
 	if _shellrc_is_bash; then
-		eval "$(zoxide init bash)"
+		eval "$(zoxide init bash --cmd cd)"
 	elif _shellrc_is_zsh; then
-		eval "$(zoxide init zsh)"
+		eval "$(zoxide init zsh --cmd cd)"
 	else
-		eval "$(zoxide init posix --hook prompt)"
+		eval "$(zoxide init posix --cmd cd)"
 	fi
 }
 
@@ -1046,7 +1046,9 @@ configure_ncdu() {
 
 configure_aliases() {
 	_shellrc_debug_echo "configure_aliases()"
-	alias cd='>/dev/null cd'
+	if ! _shellrc_command zoxide; then
+		alias cd='>/dev/null cd'
+	fi
 	if ! _shellrc_command _get_comp_words_by_ref; then
 		alias sudo='sudo ' # Enable sudo <alias>, only if bash-completion is not loaded.
 	fi
