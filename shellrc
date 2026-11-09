@@ -234,14 +234,21 @@ _shellrc_update() {
 	_shellrc_command curl || return 0
 	_shellrc_verbose_echo "checking for update"
 	F="$(mktemp "${TMPDIR:-/tmp}/.shellrc-tmp.XXXXXXXX")" || return 0
-	trap 'rm -f "$F"' EXIT INT TERM
 	_shellrc_set_SHELLRC_CONFIG_DIR
 	# Find real .shellrc file if symlinked
 	SHELLRC_FILE=$(_shellrc_get_path)
 	SHELLRC_SNAPSHOT_DIR=$SHELLRC_CONFIG_DIR/snapshots
 	URL="https://raw.githubusercontent.com/tmslnz/shellrc/main/shellrc?$(date +%s)"
-	if ! curl --connect-timeout 5 -H 'Cache-Control: no-cache' -s -L -o "$F" "$URL"; then
+	if ! curl --connect-timeout 5 -H 'Cache-Control: no-cache' -f -s -L -o "$F" "$URL"; then
 		_shellrc_verbose_echo "... curl error"
+		rm -f "$F"
+		unset F TS URL SHELLRC_SNAPSHOT_DIR
+		return 0
+	fi
+	# Refuse anything that is not a shellrc (error page, captive portal, ...)
+	if ! grep -q '^main() {' "$F"; then
+		_shellrc_verbose_echo "... download is not a valid shellrc, skipping"
+		rm -f "$F"
 		unset F TS URL SHELLRC_SNAPSHOT_DIR
 		return 0
 	fi
@@ -253,11 +260,13 @@ _shellrc_update() {
 		mkdir -p "$SHELLRC_SNAPSHOT_DIR"
 		mv "$SHELLRC_FILE" "$SHELLRC_SNAPSHOT_DIR/$(basename "$SHELLRC_FILE")-$TS" >/dev/null 2>&1
 		cat "$F" >"$SHELLRC_FILE"
+		rm -f "$F"
 		unset _SHELLRC_REVISION
 		unset SHELLRC_SOURCED
 		. "$SHELLRC_FILE"
 	else
 		_shellrc_verbose_echo "no updates available"
+		rm -f "$F"
 	fi
 	unset F TS URL SHELLRC_SNAPSHOT_DIR
 }
@@ -302,9 +311,8 @@ _shellrc_debug_echo() {
 }
 
 _shellrc_can_echo() {
-	test -t 1 || return 0
-	test "$(tty)" != "not a tty" || return 0
-	return 1
+	test -t 1 || return 1
+	test "$(tty)" != "not a tty" || return 1
 }
 
 _shellrc_verbose_echo() {
