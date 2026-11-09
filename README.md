@@ -105,6 +105,9 @@ https://perlbrew.pl
 ### SDKMAN!
 https://sdkman.io
 
+### mise
+https://mise.jdx.dev
+
 ### pyenv
 https://github.com/pyenv/pyenv
 
