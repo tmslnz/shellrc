@@ -310,6 +310,17 @@ _shellrc_debug_echo() {
 	echo "$1"
 }
 
+# cd without the hooks that other tools attach to it (mise, zoxide, chpwd)
+_shellrc_cd() {
+	if _shellrc_is_zsh; then
+		builtin cd -q "$1"
+	elif _shellrc_is_bash; then
+		builtin cd "$1"
+	else
+		command cd "$1"
+	fi
+}
+
 _shellrc_can_echo() {
 	test -t 1 || return 1
 	test "$(tty)" != "not a tty" || return 1
@@ -1620,14 +1631,11 @@ configure_git() {
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" prepend
 	# shellcheck disable=SC2317
 	git_prompt() {
+		# Walk up by trimming the path: `cd` may be wrapped with hooks (mise,
+		# zoxide), which would then run once per level on every prompt.
 		base=$(pwd -P)
-		# shellcheck disable=SC2034
-		for i in $(seq 10); do
-			test -z "$base" && break
-			test "$base" = '/' && break
-			test -e "$base/.git" && break
-			parent="$(cd "$base/.." 2>/dev/null && pwd -P 2>/dev/null)"
-			base=$parent
+		while test "$base" && ! test -e "$base/.git"; do
+			base=${base%/*}
 		done
 		SHELLRC_PROMPT_GIT=""
 		if test -e "$base/.git"; then
@@ -1816,24 +1824,30 @@ configure_python() {
 			fi
 		}
 		_venv_find() {
-			venv_root=.
+			# Walk up by trimming the path: `cd` may be wrapped with hooks
+			# (mise, zoxide), which would then run once per level on every prompt.
+			venv_real=$(pwd -P)
+			test "$venv_real" = "/" && venv_real=
 			j=0
 			while test "$j" -le 5; do
-				venv_real="$(cd "$venv_root" && pwd -P)"
-
 				# Check both .venv and .env directly without pipeline
 				for candidate in "$venv_real/.venv" "$venv_real/.env"; do
 					if test -f "$candidate/bin/activate"; then
-						(cd "$candidate" && pwd -P)
+						if test -L "$candidate"; then
+							# Resolve to the physical path, as VIRTUAL_ENV has it
+							(_shellrc_cd "$candidate" && pwd -P)
+						else
+							echo "$candidate"
+						fi
 						return
 					fi
 				done
 
-				test "$venv_real" = "/" && break
-				venv_root="${venv_root}/.."
+				test -z "$venv_real" && break
+				venv_real=${venv_real%/*}
 				j=$((j + 1))
 			done
-			unset venv_root venv_real candidate
+			unset venv_real candidate
 		}
 		_venv_curr() {
 			if test "${VIRTUAL_ENV:-}" && command -v deactivate >/dev/null; then
