@@ -62,6 +62,7 @@ main() {
 		configure_zoxide
 		configure_perlbrew
 		configure_sdkman
+		configure_mise
 		configure_pyenv
 		configure_uv
 		configure_python
@@ -996,6 +997,20 @@ configure_perlbrew() {
 	fi
 	_shellrc_restore_options
 	unset PB_ROOT
+}
+
+configure_mise() {
+	# https://mise.jdx.dev/shell-setup.html
+	_shellrc_command mise || return 0
+	_shellrc_debug_echo "configure_mise()"
+	if _shellrc_is_bash; then
+		eval "$(mise activate bash)"
+	elif _shellrc_is_zsh; then
+		eval "$(mise activate zsh)"
+	else
+		# No activation hook for plain sh: fall back to shims
+		_shellrc_prepend_PATH "${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
+	fi
 }
 
 configure_pyenv() {
