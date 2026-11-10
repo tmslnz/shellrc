@@ -1,8 +1,10 @@
 # AGENTS.md
 
-`shellrc` is the entire product: a single-file POSIX `sh` script installed to `~/.shellrc`. There is no build, package manager, or test suite. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility. Plain `sh` support means the file parses and sources without errors on restricted shells (e.g. `dash`); it does not mean feature parity. Gate Bash/Zsh-only features behind `_shellrc_is_bash`/`_shellrc_is_zsh` and do not build `sh` emulations of them. See "Shell compatibility" in `README.md`.
+`shellrc` is the entire product: a single-file POSIX `sh` script installed to `~/.shellrc`. There is no build or package manager; `make` runs the linters and the tests in `tests/run.sh`. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility. Plain `sh` support means the file parses and sources without errors on restricted shells (e.g. `dash`); it does not mean feature parity. Gate Bash/Zsh-only features behind `_shellrc_is_bash`/`_shellrc_is_zsh` and do not build `sh` emulations of them. See "Shell compatibility" in `README.md`.
 
 ## Verify changes
+- `make` — runs everything below (`make lint`, `make test`). Shells and `shellcheck` that are not installed are skipped, so read the output.
+- `sh tests/run.sh [shell ...]` — plain-`sh` tests, run under each of `dash`, `bash`, `zsh`. Unit tests source `shellrc` non-interactively (defines every function, skips `main()`) in a throwaway `$HOME`; `test_interactive_run` runs `main()` for real with `<shell> -i` and covers only the tools installed on the machine. Add a `test_*` function when changing a `_shellrc_*` helper.
 - `shellcheck shellrc` — primary linter. Some shellcheck versions report SC2328/SC2327 on the `eval "$(pyenv virtualenv-init - 2>/dev/null)"` line in `configure_pyenv` (0.9.0 reports nothing). It is known; do not "fix" it blindly.
 - `dash -n shellrc && bash -n shellrc && zsh -n shellrc` — syntax check. Use `dash` explicitly: `sh` is Bash on macOS, so `sh -n` there misses POSIX parse errors.
 - Runtime test requires an **interactive** shell: `main()` returns immediately on non-interactive shells, so `sh -c '. ./shellrc'` is a no-op. Use `bash -i`/`zsh -i`, or set the flags below.

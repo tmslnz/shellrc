@@ -6,6 +6,7 @@ Comprehesive and portable environment configuration in a single file.
 - [Conventions](#conventions)
 - [Supported Tools](#supported-tools)
 - [Utility Functions](#utility-functions)
+- [Development](#development)
 
 ## Overview
 The goal of this script to **safely(1)** and **predictably(2)** store and update CLI and other app configurations from a single source, without using symlinks, Git or other more complex tools.
@@ -161,3 +162,15 @@ https://github.com/ko1nksm/shdotenv
 #### `git_freeze_submodule <path>`
 
 #### `configure_nebula`
+
+## Development
+
+```
+make        # lint + test
+make lint   # dash/bash/zsh -n, shellcheck
+make test   # sh tests/run.sh
+```
+
+`tests/run.sh` is plain `sh` with no framework. It runs every `test_*` function under each installed shell out of `dash`, `bash` and `zsh`, each in a throwaway `$HOME`, so the real home directory stays untouched. Pass shell names to limit the run: `sh tests/run.sh bash`.
+
+The last test sources the file in an interactive shell and runs `main()` twice. It exercises the `configure_*` functions of whichever tools are installed, and checks that the second run leaves the fenced sections unchanged.
