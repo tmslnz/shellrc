@@ -59,7 +59,7 @@ Fenced sections are stamped with a content-hash revision marker of `~/.shellrc`;
 
 Bash and Zsh are the primary targets. Plain POSIX `sh` (e.g. `dash`) is supported on a best-effort basis:
 
-- The whole file must **parse** under `sh` (`sh -n shellrc`). Shell-specific syntax such as arrays may only appear inside strings, heredocs or `eval`, or be replaced with a plain command (e.g. `add-zsh-hook`).
+- The whole file must **parse** under `sh` (check with `dash -n shellrc`; on macOS `sh` is Bash and misses these errors). Shell-specific syntax such as arrays may only appear inside strings, heredocs or `eval`, or be replaced with a plain command (e.g. `add-zsh-hook`).
 - The file must **source** under `sh` without errors.
 - Features may be reduced or missing under `sh`. Bash- or Zsh-only behaviour sits behind `_shellrc_is_bash` / `_shellrc_is_zsh` and needs no `sh` equivalent.
 
