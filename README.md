@@ -55,6 +55,14 @@ The script writes all configurations conditionally (i.e: `x in PATH`, `OS == Dar
 Local changes _outside_ of a fenced section are never over-written.
 Fenced sections are stamped with a content-hash revision marker of `~/.shellrc`; a section is only rewritten when that hash changes. Local changes _within_ a fenced section are therefore eventually overwritten by an update.
 
+### Shell compatibility
+
+Bash and Zsh are the primary targets. Plain POSIX `sh` (e.g. `dash`) is supported on a best-effort basis:
+
+- The whole file must **parse** under `sh` (check with `dash -n shellrc`; on macOS `sh` is Bash and misses these errors). Shell-specific syntax such as arrays may only appear inside strings, heredocs or `eval`, or be replaced with a plain command (e.g. `add-zsh-hook`).
+- The file must **source** under `sh` without errors.
+- Features may be reduced or missing under `sh`. Bash- or Zsh-only behaviour sits behind `_shellrc_is_bash` / `_shellrc_is_zsh` and needs no `sh` equivalent.
+
 ## Supported Tools
 
 ### Bash
