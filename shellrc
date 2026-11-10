@@ -59,7 +59,6 @@ main() {
 		configure_wget
 		configure_fd
 		configure_fzf
-		configure_zoxide
 		configure_perlbrew
 		configure_sdkman
 		configure_mise
@@ -73,6 +72,7 @@ main() {
 		configure_goaccess
 		configure_composer
 		configure_shdotenv
+		configure_zoxide
 		configure_aliases
 		configure_prompt
 		make_utility_functions
@@ -978,6 +978,8 @@ configure_fd() {
 	export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 }
 
+# Must run after anything else that defines `cd` (e.g. `mise activate bash`
+# installs a chpwd emulation that redefines cd), or zoxide's cd is replaced.
 configure_zoxide() {
 	_shellrc_command zoxide || return 0
 	_shellrc_debug_echo "configure_zoxide()"
