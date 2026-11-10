@@ -1,10 +1,10 @@
 # AGENTS.md
 
-`shellrc` is the entire product: a single-file POSIX `sh` script installed to `~/.shellrc`. There is no build, package manager, or test suite. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility. `sh` compatibility is a requirement for any function on the hot path, so that this script can run on more restricted shells.
+`shellrc` is the entire product: a single-file POSIX `sh` script installed to `~/.shellrc`. There is no build, package manager, or test suite. Indentation is tabs; the file targets `sh` with Bash/Zsh compatibility. Plain `sh` support means the file parses and sources without errors on restricted shells (e.g. `dash`); it does not mean feature parity. Gate Bash/Zsh-only features behind `_shellrc_is_bash`/`_shellrc_is_zsh` and do not build `sh` emulations of them. See "Shell compatibility" in `README.md`.
 
 ## Verify changes
 - `shellcheck shellrc` — primary linter. Pre-existing error SC2328/SC2327 at `shellrc:990` (`pyenv virtualenv-init` redirect) is known; do not "fix" it blindly.
-- `sh -n shellrc && bash -n shellrc` — syntax check.
+- `dash -n shellrc && bash -n shellrc && zsh -n shellrc` — syntax check. Use `dash` explicitly: `sh` is Bash on macOS, so `sh -n` there misses POSIX parse errors.
 - Runtime test requires an **interactive** shell: `main()` returns immediately on non-interactive shells, so `sh -c '. ./shellrc'` is a no-op. Use `bash -i`/`zsh -i`, or set the flags below.
 - Useful dev flags: `SHELLRC_DEBUG=true` (times each step), `SHELLRC_VERBOSE=true` (progress), `SHELLRC_UPDATECHECK=false` (skip auto-update).
 
