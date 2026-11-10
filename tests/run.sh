@@ -11,7 +11,7 @@
 #
 # To add a test, write a test_* function that calls `fail` or `assert_*`.
 #
-# shellcheck disable=SC1090,SC1091,SC2013,SC2016,SC2030,SC2031,SC2034
+# shellcheck disable=SC1090,SC1091,SC2013,SC2016,SC2030,SC2031,SC2034,SC2329
 
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd) || exit 1
 SRC=$ROOT/shellrc
@@ -184,6 +184,44 @@ test_get_revision_is_cached_content_hash() {
 	test "$r1" != "$_SHELLRC_REVISION" || fail "revision should change with the content"
 }
 
+test_restore_options_reapplies_all_of_them() {
+	_SHELLRC_OPTIONS=euf
+	set +u +f
+	_shellrc_restore_options
+	opts=$-
+	set +e +f
+	case "$opts" in *e*) ;; *) fail "-e not restored" ;; esac
+	case "$opts" in *u*) ;; *) fail "-u not restored" ;; esac
+	case "$opts" in *f*) ;; *) fail "-f not restored" ;; esac
+	# After main() the saved options are gone and user commands change nothing
+	unset _SHELLRC_OPTIONS
+	_shellrc_restore_options
+	opts=$-
+	set +e +f
+	case "$opts" in *[ef]*) fail "options set without saved state: $opts" ;; esac
+}
+
+test_config_dir_defaults_to_dot_config() {
+	_shellrc_set_SHELLRC_CONFIG_DIR
+	assert_eq "$HOME/.config/shellrc" "$SHELLRC_CONFIG_DIR"
+	test -d "$SHELLRC_CONFIG_DIR" || fail "directory not created"
+}
+
+test_config_dir_honours_xdg_and_migrates_old_snapshots() {
+	XDG_CONFIG_HOME=$HOME/xdg
+	mkdir -p "$XDG_CONFIG_HOME/snapshots"
+	echo "# old" >"$XDG_CONFIG_HOME/snapshots/.shellrc-2020-01-01T000000"
+	_shellrc_set_SHELLRC_CONFIG_DIR
+	assert_eq "$HOME/xdg/shellrc" "$SHELLRC_CONFIG_DIR"
+	test -f "$HOME/xdg/shellrc/snapshots/.shellrc-2020-01-01T000000" || fail "snapshot not moved"
+	test ! -d "$HOME/xdg/snapshots" || fail "old snapshots directory left behind"
+}
+
+test_locale_hint_keeps_the_sed_backreference() {
+	locale() { :; } # pretend no UTF-8 locale is installed
+	assert_contains "$(configure_locale)" '/\1/' "sed hint"
+}
+
 test_append_and_prepend_PATH() {
 	mkdir "$HOME/x" "$HOME/y"
 	base=$PATH
@@ -241,6 +279,7 @@ test_interactive_run() {
 	script='. ~/.shellrc
 		echo "rc=$? sourced=${SHELLRC_SOURCED:-} agent=${SSH_AGENT_PID:-}"
 		case $- in *[euf]*) echo "options-not-restored=$-" ;; esac
+		test -n "${_SHELLRC_OPTIONS:-}" && echo "leftover=_SHELLRC_OPTIONS"
 		for f in main configure_PATH configure_git make_utility_functions; do
 			command -v "$f" >/dev/null 2>&1 && echo "leftover=$f"
 		done

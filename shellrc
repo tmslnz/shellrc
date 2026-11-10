@@ -89,6 +89,7 @@ main() {
 	set +e # Do not exit on error
 	set +u # Do not exit on unbound variable
 	set +f # Enable filename expansion (*,?,[...])
+	unset _SHELLRC_OPTIONS
 }
 
 shellrc() {
@@ -145,12 +146,12 @@ _shellrc_get_revision() {
 	printf "%s" "$_SHELLRC_REVISION"
 }
 
+# Re-apply the options main() runs under, after a block that relaxed them.
+# A no-op once main() has finished and unset _SHELLRC_OPTIONS.
 _shellrc_restore_options() {
-	case "${_SHELLRC_OPTIONS:-}" in
-	*e*) set -e ;;
-	*f*) set -f ;;
-	*u*) set -u ;;
-	esac
+	case "${_SHELLRC_OPTIONS:-}" in *e*) set -e ;; esac
+	case "${_SHELLRC_OPTIONS:-}" in *u*) set -u ;; esac
+	case "${_SHELLRC_OPTIONS:-}" in *f*) set -f ;; esac
 }
 
 _shellrc_is_interactive() {
@@ -169,8 +170,18 @@ _shellrc_is_login() {
 
 _shellrc_set_SHELLRC_CONFIG_DIR() {
 	test -n "${SHELLRC_CONFIG_DIR:-}" && return 0
-	mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
-	SHELLRC_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config/shellrc}"
+	SHELLRC_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/shellrc"
+	mkdir -p "$SHELLRC_CONFIG_DIR"
+	# Older versions wrote straight into $XDG_CONFIG_HOME: move what they left
+	if test -n "${XDG_CONFIG_HOME:-}"; then
+		if test -d "$XDG_CONFIG_HOME/snapshots"; then
+			mkdir -p "$SHELLRC_CONFIG_DIR/snapshots"
+			find "$XDG_CONFIG_HOME/snapshots" -name '.shellrc-*' \
+				-exec mv {} "$SHELLRC_CONFIG_DIR/snapshots/" \; 2>/dev/null || true
+			rmdir "$XDG_CONFIG_HOME/snapshots" 2>/dev/null || true
+		fi
+		rm -rf "$XDG_CONFIG_HOME/bootstrap-pyenv"
+	fi
 }
 
 _shellrc_todo() {
@@ -630,8 +641,8 @@ configure_locale() {
 	if ! locale -a | grep -ixq 'en_us.utf-\?8'; then
 		printf "... UTF8 locale not ready.\n"
 		printf "... Please run:\n"
-		printf "$ sudo sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen\n"
-		printf "$ sudo locale-gen \"en_US.UTF-8\"\n"
+		printf '%s\n' "$ sudo sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen"
+		printf '%s\n' '$ sudo locale-gen "en_US.UTF-8"'
 		return 0
 	fi
 	export LC_ALL=en_US.UTF-8
@@ -871,7 +882,9 @@ configure_bash() {
 		complete -cf sudo
 	}
 	set_bash_options
+	set +f # bash-completion globs for its completion files
 	load_bash_completion
+	_shellrc_restore_options
 	unset CONFIG CONFIGFILE
 	unset -f set_bash_options load_bash_completion
 }
@@ -954,7 +967,9 @@ configure_zsh() {
 		autoload bashcompinit && bashcompinit
 	}
 	configure_zshell_line_editor
+	set +f
 	load_zsh_completion
+	_shellrc_restore_options
 	unset CONFIG CONFIGFILE
 	unset -f configure_zshell_line_editor load_zsh_completion
 }
@@ -962,11 +977,13 @@ configure_zsh() {
 configure_fzf() {
 	_shellrc_command fzf || return 0
 	_shellrc_debug_echo "configure_fzf()"
+	set +f
 	if _shellrc_is_modern_bash; then
 		eval "$(fzf --bash 2>/dev/null)"
 	elif _shellrc_is_zsh; then
 		eval "$(fzf --zsh 2>/dev/null)"
 	fi
+	_shellrc_restore_options
 	if _shellrc_command fd; then
 		export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'
 		export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
@@ -985,6 +1002,7 @@ configure_fd() {
 configure_zoxide() {
 	_shellrc_command zoxide || return 0
 	_shellrc_debug_echo "configure_zoxide()"
+	set +f
 	if _shellrc_is_bash; then
 		eval "$(zoxide init bash --cmd cd)"
 	elif _shellrc_is_zsh; then
@@ -992,6 +1010,7 @@ configure_zoxide() {
 	else
 		eval "$(zoxide init posix --cmd cd --hook prompt)"
 	fi
+	_shellrc_restore_options
 }
 
 configure_perlbrew() {
@@ -1008,7 +1027,7 @@ configure_perlbrew() {
 	EOF
 	test -z "${PB_ROOT:+x}" && return 0
 	_shellrc_debug_echo "configure_perlbrew()"
-	set +e +u
+	set +e +u +f
 	_shellrc_is_bash && . "$PB_ROOT/etc/bashrc"
 	_shellrc_is_zsh && . "$PB_ROOT/etc/bashrc"
 	# In case of old settings
@@ -1026,6 +1045,7 @@ configure_mise() {
 	# https://mise.jdx.dev/shell-setup.html
 	_shellrc_command mise || return 0
 	_shellrc_debug_echo "configure_mise()"
+	set +f
 	if _shellrc_is_bash; then
 		eval "$(mise activate bash)"
 	elif _shellrc_is_zsh; then
@@ -1034,6 +1054,7 @@ configure_mise() {
 		# No activation hook for plain sh: fall back to shims
 		_shellrc_prepend_PATH "${MISE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/mise}/shims"
 	fi
+	_shellrc_restore_options
 }
 
 configure_pyenv() {
@@ -1044,17 +1065,24 @@ configure_pyenv() {
 	export PYENV_ROOT="$HOME/.pyenv"
 	#TODO: fix when using MacPorts
 	_shellrc_append_PATH "$PYENV_ROOT/bin"
+	set +f
 	eval "$(pyenv init -)"
 	_shellrc_command brew && alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 	# Plugins
 	eval "$(pyenv virtualenv-init - 2>/dev/null)" || true
+	_shellrc_restore_options
 }
 
 configure_direnv() {
 	_shellrc_command direnv || return 0
 	_shellrc_debug_echo "configure_direnv()"
-	_shellrc_is_bash && eval "$(direnv hook bash || true)" && return
-	_shellrc_is_zsh && eval "$(direnv hook zsh || true)" && return
+	set +f
+	if _shellrc_is_bash; then
+		eval "$(direnv hook bash || true)"
+	elif _shellrc_is_zsh; then
+		eval "$(direnv hook zsh || true)"
+	fi
+	_shellrc_restore_options
 }
 
 configure_shdotenv() {
@@ -1747,7 +1775,9 @@ configure_ssh() {
 	_shellrc_upsert_section "$CONFIG" "$CONFIGFILE" append
 	if _shellrc_is_linux && _shellrc_command keychain; then
 		if test -x /usr/bin/keychain; then
+			set +f
 			eval "$(keychain --eval --ignore-missing id_ed25519)"
+			_shellrc_restore_options
 		fi
 	elif test -x /usr/bin/ssh-agent; then
 		SSH_ENV="$HOME/.ssh/environment"
@@ -1791,6 +1821,7 @@ configure_uv() {
 	_shellrc_command uv || return 0
 	_shellrc_debug_echo "configure_uv()"
 
+	set +f
 	# Enable completion only if not already loaded
 	# shellcheck disable=SC3044
 	if _shellrc_is_bash && ! complete -p uv >/dev/null 2>&1; then
@@ -1798,6 +1829,7 @@ configure_uv() {
 	elif _shellrc_is_zsh && ! type _uv >/dev/null 2>&1; then
 		eval "$(uv generate-shell-completion zsh 2>/dev/null || true)"
 	fi
+	_shellrc_restore_options
 }
 
 configure_python() {
@@ -1868,7 +1900,9 @@ configure_python() {
 			_shellrc_command "$1" && eval "$(register-python-argcomplete "$1")"
 			true
 		}
+		set +f
 		load_python_completion pipx
+		_shellrc_restore_options
 	fi
 	load_python_autovenv
 	unset -f load_python_autovenv load_python_completion 2>/dev/null || true
@@ -1878,7 +1912,7 @@ configure_sdkman() {
 	_shellrc_command sdk && return
 	_shellrc_debug_echo "configure_sdkman()"
 	if test -f "$HOME/.sdkman/bin/sdkman-init.sh"; then
-		set +e +u
+		set +e +u +f
 		. "$HOME/.sdkman/bin/sdkman-init.sh"
 		_shellrc_restore_options
 	fi
@@ -2014,7 +2048,6 @@ make_utility_functions() {
 			done
 			IFS=$ORIGINAL_IFS
 		} | sort
-		_shellrc_restore_options
 		unset f d
 	}
 

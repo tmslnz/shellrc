@@ -18,6 +18,7 @@
   - `make_utility_functions` — defines the user-facing commands (`zap`, `list_all_binaries`, etc.).
 - **Adding/removing a `configure_*` requires editing the ordered list (the heredoc inside `main()`).** Order matters (e.g. `configure_PATH` first). Unlisted functions never run.
 - `main()` runs under `set -euf` and restores `+euf` on success. Under `set -u`, reference possibly-unset vars as `${VAR:-}`.
+- Code that needs different options inside `main()` relaxes them (`set +f`, `set +e +u`) and then calls `_shellrc_restore_options`. Do this around every `eval`/`.` of third-party shell code (completions, `mise activate`, `pyenv init`, ...), which expects globbing. `main()` unsets `_SHELLRC_OPTIONS` at the end, so the helper does nothing in user commands.
 - Every `configure_*` starts with a guard like `_shellrc_command X || return 0` so only installed tools are configured.
 
 ## Config-writing behavior
