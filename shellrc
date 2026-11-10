@@ -655,8 +655,10 @@ configure_prompt() {
 	PROMPT_COMMAND="_shellrc_prompt_commands;${PROMPT_COMMAND:-}"
 	if _shellrc_is_zsh; then
 		prmptcmd() { eval "$PROMPT_COMMAND"; }
-		# shellcheck disable=SC2034,SC3030
-		precmd_functions=(prmptcmd)
+		# add-zsh-hook appends without clobbering other precmd hooks (mise), and
+		# avoids array syntax, which strict sh parsers reject even here.
+		autoload -Uz add-zsh-hook
+		add-zsh-hook precmd prmptcmd
 	fi
 }
 
@@ -988,7 +990,7 @@ configure_zoxide() {
 	elif _shellrc_is_zsh; then
 		eval "$(zoxide init zsh --cmd cd)"
 	else
-		eval "$(zoxide init posix --cmd cd)"
+		eval "$(zoxide init posix --cmd cd --hook prompt)"
 	fi
 }
 
