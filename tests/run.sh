@@ -270,6 +270,21 @@ test_revert_restores_last_snapshot() {
 	assert_eq "# old" "$(cat "$HOME/.shellrc")"
 }
 
+test_python_completion_needs_bash_or_zsh() {
+	# argcomplete emits Bash/Zsh syntax; in plain sh the eval would be fatal
+	mkdir "$HOME/fakebin"
+	printf '#!/bin/sh\nexit 0\n' >"$HOME/fakebin/pipx"
+	printf '#!/bin/sh\necho "SHELLRC_TEST_COMPLETION=(loaded)"\n' >"$HOME/fakebin/register-python-argcomplete"
+	chmod +x "$HOME/fakebin/pipx" "$HOME/fakebin/register-python-argcomplete"
+	PATH="$HOME/fakebin:$PATH"
+	out=$(configure_python 2>&1 && echo "survived=${SHELLRC_TEST_COMPLETION:+loaded}") ||
+		fail "configure_python failed: $out"
+	case $SHELLRC_TEST_SHELL in
+	bash | zsh) assert_contains "$out" "survived=loaded" "completion loaded" ;;
+	*) assert_contains "$out" "survived=" "completion skipped" ;;
+	esac
+}
+
 # ******************************************************************************
 # Utility functions
 # ******************************************************************************

@@ -1894,7 +1894,8 @@ configure_python() {
 			printf "%s" "$(basename "$(dirname "$1")")"
 		}
 	}
-	if _shellrc_command 'register-python-argcomplete'; then
+	# The generated completion code is Bash/Zsh syntax, which plain sh cannot parse
+	if { _shellrc_is_bash || _shellrc_is_zsh; } && _shellrc_command 'register-python-argcomplete'; then
 		# for zsh: https://stackoverflow.com/a/75791863
 		load_python_completion() {
 			_shellrc_command "$1" && eval "$(register-python-argcomplete "$1")"
