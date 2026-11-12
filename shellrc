@@ -2056,16 +2056,74 @@ make_utility_functions() {
 		rsync -avP --prune-empty-dirs --checksum -e 'ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no"' "$1" "$2"
 	}
 
-	_shellrc_command rsync && zap() {
-		test "${1:-}" || return 0
-		test -d "$1" || return 0
-		# https://unix.stackexchange.com/a/642591
-		tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
-		rsync -aP --delete "$tempdir/" "$1"
-		rm -r "$1"
-		rm -r "$tempdir"
-		unset tempdir
-	}
+	# zap <dir>...
+	# Delete directories fast by syncing an empty one over them.
+	# https://unix.stackexchange.com/a/642591
+	# A symlink to a directory loses the link only; its target stays untouched.
+	# Runs in a subshell, so its variables never reach the calling shell.
+	_shellrc_command rsync && zap() (
+		test "$#" -gt 0 || exit 0
+		rc=0
+		cwd=$(pwd -P) || exit 1
+		# Without a real, resolved empty directory rsync would sync from `/`
+		empty=$(mktemp -d 2>/dev/null || mktemp -d -t zap 2>/dev/null) || empty=
+		test -z "$empty" || empty=$(CDPATH='' cd -- "$empty" 2>/dev/null && pwd -P) || empty=
+		if test -z "$empty"; then
+			echo "zap: cannot create a temporary directory" >&2
+			exit 1
+		fi
+		for arg in "$@"; do
+			test -n "$arg" || continue
+			# Drop trailing slashes, so `link/` still counts as the link
+			dir=${arg%"${arg##*[!/]}"}
+			test -n "$dir" || dir=/
+			# Keep names like `-x` and `-` away from option parsing
+			case $dir in
+			/*) ;;
+			*) dir=./$dir ;;
+			esac
+			if ! test -d "$dir"; then
+				echo "zap: $arg: not a directory" >&2
+				rc=1
+				continue
+			fi
+			if test -L "$dir"; then
+				rm -- "$dir" || rc=1
+				continue
+			fi
+			abs=$(CDPATH='' cd -- "$dir" 2>/dev/null && pwd -P) || abs=
+			case $abs in
+			'')
+				echo "zap: $arg: cannot enter directory" >&2
+				rc=1
+				continue
+				;;
+			/ | //)
+				echo "zap: $arg: refusing to remove the root directory" >&2
+				rc=1
+				continue
+				;;
+			esac
+			case $cwd/ in
+			"$abs"/*)
+				echo "zap: $arg: refusing to remove the current directory or one of its parents" >&2
+				rc=1
+				continue
+				;;
+			esac
+			# A target that holds the empty directory (e.g. /tmp) gets plain `rm`
+			case $empty/ in
+			"$abs"/*) ;;
+			*) rsync -a --delete -- "$empty/" "$abs/" ;;
+			esac
+			# The status reports whether the directory is gone
+			rm -rf -- "$abs" || rc=1
+		done
+		if test -d "$empty"; then
+			rmdir -- "$empty" || rc=1
+		fi
+		exit "$rc"
+	)
 
 	_shellrc_command git && git_normalize_eol() {
 		# https://stackoverflow.com/a/4683783

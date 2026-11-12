@@ -155,7 +155,9 @@ https://github.com/ko1nksm/shdotenv
 
 #### `list_all_binaries`
 
-#### `zap <dir>`
+#### `zap <dir>...`
+
+Deletes directories fast, by syncing an empty directory over each one with `rsync` and then removing it. A symlink to a directory loses the link only; the target stays untouched. Refuses `/`, the current directory and its parents. Exits non-zero when any argument fails.
 
 #### `git_lf <dir>`
 
