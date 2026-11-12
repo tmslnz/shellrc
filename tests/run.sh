@@ -11,7 +11,7 @@
 #
 # To add a test, write a test_* function that calls `fail` or `assert_*`.
 #
-# shellcheck disable=SC1090,SC1091,SC2013,SC2016,SC2030,SC2031,SC2034,SC2329
+# shellcheck disable=SC1090,SC1091,SC2013,SC2016,SC2030,SC2031,SC2034,SC2317,SC2329
 
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd) || exit 1
 SRC=$ROOT/shellrc
@@ -268,6 +268,126 @@ test_revert_restores_last_snapshot() {
 	echo "# old" >"$HOME/.config/shellrc/snapshots/.shellrc-2020-01-01T000000"
 	_shellrc_revert >/dev/null
 	assert_eq "# old" "$(cat "$HOME/.shellrc")"
+}
+
+test_python_completion_needs_bash_or_zsh() {
+	# argcomplete emits Bash/Zsh syntax; in plain sh the eval would be fatal
+	mkdir "$HOME/fakebin"
+	printf '#!/bin/sh\nexit 0\n' >"$HOME/fakebin/pipx"
+	printf '#!/bin/sh\necho "SHELLRC_TEST_COMPLETION=(loaded)"\n' >"$HOME/fakebin/register-python-argcomplete"
+	chmod +x "$HOME/fakebin/pipx" "$HOME/fakebin/register-python-argcomplete"
+	PATH="$HOME/fakebin:$PATH"
+	out=$(configure_python 2>&1 && echo "survived=${SHELLRC_TEST_COMPLETION:+loaded}") ||
+		fail "configure_python failed: $out"
+	case $SHELLRC_TEST_SHELL in
+	bash | zsh) assert_contains "$out" "survived=loaded" "completion loaded" ;;
+	*) assert_contains "$out" "survived=" "completion skipped" ;;
+	esac
+}
+
+# ******************************************************************************
+# Utility functions
+# ******************************************************************************
+
+# Define zap in the test shell; false when rsync is missing
+zap_available() {
+	make_utility_functions >/dev/null 2>&1
+	command -v zap >/dev/null 2>&1
+}
+
+# A small tree with hidden files, nesting, spaces and a dangling symlink
+zap_tree() {
+	mkdir -p "$1/sub/deep"
+	: >"$1/a"
+	: >"$1/.hidden"
+	: >"$1/sub/deep/f f"
+	ln -s nowhere "$1/dangling"
+}
+
+test_zap_removes_directories() {
+	zap_available || return 0
+	zap || fail "no argument should succeed"
+	zap "" || fail "empty argument should succeed"
+	zap_tree "$HOME/one"
+	zap_tree "$HOME/two"
+	zap_tree "$HOME/with space"
+	zap_tree "$HOME/slash"
+	zap_tree "$HOME/-dash"
+	out=$(zap "$HOME/one" two "$HOME/with space" "$HOME/slash//" -dash 2>&1) || fail "zap failed: $out"
+	assert_eq "" "$out" "zap prints nothing on success"
+	for d in one two "with space" slash -dash; do
+		test ! -e "$HOME/$d" || fail "'$d' still exists"
+	done
+	mkdir "$HOME/tmp"
+	zap_tree "$HOME/again"
+	TMPDIR=$HOME/tmp zap "$HOME/again"
+	assert_eq "" "$(ls -A "$HOME/tmp")" "temporary directory removed"
+}
+
+test_zap_reports_failures() {
+	zap_available || return 0
+	: >"$HOME/file"
+	zap_tree "$HOME/good"
+	if out=$(zap "$HOME/file" "$HOME/missing" "$HOME/good" 2>&1); then fail "bad arguments should fail"; fi
+	assert_contains "$out" "file: not a directory"
+	assert_contains "$out" "missing: not a directory"
+	test -f "$HOME/file" || fail "regular file was removed"
+	test ! -e "$HOME/good" || fail "valid argument after a bad one was skipped"
+
+	zap_tree "$HOME/stuck"
+	if (rm() { return 1; } && zap "$HOME/stuck" 2>/dev/null); then fail "rm failure should fail zap"; fi
+}
+
+test_zap_removes_symlink_but_not_its_target() {
+	zap_available || return 0
+	zap_tree "$HOME/real"
+	ln -s real "$HOME/link"
+	ln -s real "$HOME/link2"
+	zap "$HOME/link" link2/ || fail "zap failed"
+	test ! -L "$HOME/link" || fail "link still exists"
+	test ! -L "$HOME/link2" || fail "link with trailing slash still exists"
+	test -f "$HOME/real/sub/deep/f f" || fail "target of the link was emptied"
+}
+
+test_zap_refuses_root_and_current_directory() {
+	zap_available || return 0
+	# Stubs: a broken guard must never reach the real commands
+	rsync() { echo "rsync $*"; }
+	rm() { echo "rm $*"; }
+	for d in / // /. /.. /../ "$HOME/../../../../../../../.."; do
+		if out=$(zap "$d" 2>&1); then fail "zap '$d' should fail"; fi
+		assert_contains "$out" "refusing to remove the root directory" "zap '$d'"
+		case $out in *rsync\ * | *rm\ *) fail "zap '$d' ran: $out" ;; esac
+	done
+	ln -s / "$HOME/rootlink"
+	out=$(zap "$HOME/rootlink" 2>&1)
+	assert_eq "rm -- $HOME/rootlink" "$out" "link to / loses the link only"
+
+	mkdir -p "$HOME/in/side"
+	cd "$HOME/in/side" || return
+	for d in . .. "$HOME/in" "$HOME"; do
+		if out=$(zap "$d" 2>&1); then fail "zap '$d' should fail"; fi
+		assert_contains "$out" "refusing to remove the current directory" "zap '$d'"
+		case $out in *rsync\ * | *rm\ *) fail "zap '$d' ran: $out" ;; esac
+	done
+}
+
+test_zap_without_tempdir_does_nothing() {
+	zap_available || return 0
+	zap_tree "$HOME/keep"
+	rsync() { echo "rsync $*"; }
+	mktemp() { return 1; }
+	if out=$(zap "$HOME/keep" 2>&1); then fail "zap should fail without mktemp"; fi
+	assert_eq "zap: cannot create a temporary directory" "$out"
+	test -d "$HOME/keep/sub" || fail "directory was touched"
+}
+
+test_zap_leaves_caller_variables_alone() {
+	zap_available || return 0
+	tempdir=mine dir=mine rc=mine
+	zap_tree "$HOME/gone"
+	zap "$HOME/gone"
+	assert_eq "mine mine mine" "${tempdir:-} ${dir:-} ${rc:-}"
 }
 
 # ******************************************************************************
