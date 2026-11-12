@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  make:
+    name: make (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install shells and tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dash zsh rsync shellcheck
+
+      - name: Install shells and tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install dash shellcheck
+
+      # make skips whatever is missing, so fail here when a tool is absent
+      - name: Show tool versions
+        run: |
+          for tool in dash bash zsh rsync shellcheck; do
+            command -v "$tool"
+          done
+          bash --version | head -n 1
+          zsh --version
+          rsync --version | head -n 1
+          shellcheck --version | sed -n 2p
+
+      - name: make
+        run: make
