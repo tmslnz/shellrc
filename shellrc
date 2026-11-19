@@ -2379,67 +2379,6 @@ make_utility_functions() {
 		unset CONFIG CONFIGFILE
 	}
 
-	configure_photostructure() {
-		_shellrc_todo && return
-		{ CONFIG=$(cat); } <<-EOF
-		# BEGIN_SHELLRC
-		enableArchive = true
-		enableDelete = true
-		enableEmptyTrash = false
-		enableRemove = true
-		enableRemoveAssets = false
-		# excludeGlobsAdd = [
-		#   "**/res/screen/",
-		#   "**/*.app/",
-		#   "**/*.fcpbundle/**/Transcoded Media/",
-		#   "**/*.fcpbundle/**/Render Files/",
-		#   "**/wp-content/uploads/
-		# ]
-		excludeGlobsOmit = []
-		# keywordBlocklist = [
-		#   "private"
-		# ]
-		maxAssetFileSizeBytes = 5368709120
-		maxVideoDurationSec = 1800
-		rejectRatingsLessThan = -100
-		# badDates = [
-		#   "2002-12-08T12:00:00"
-		# ]
-		# minValidYear = 1920
-		# videoFrameAtSec = 1.5
-		allowUserAgent = true
-		# optOut = false
-		# email = "email@example.com"
-		reportErrors = false
-		writeMetadataToSidecarsIfImage = false
-		# writeMetadataToSidecarsIfSidecarExists = true
-		pickPlanOnWelcome = false
-		# https://moment.github.io/luxon/#/formatting?id=table-of-tokens .
-		# assetPathnameFormat = "y/y-MM-dd/BASE"
-		# verifyFileCopies = true
-		autoUpdateCheck = true
-		# valid values: "prealpha", "alpha", "beta" or "stable"
-		# updateChannel = "beta"
-		# FFmpeg supports both software and hardware encoders. Valid values include
-		# "auto" (which should "just work" for everyone), "h264_nvenc" for GPUs,
-		# "cuda" for NVIDIA GPUs, "dxva2" or "d3d11va" for Windows, or use "disable"
-		# to omit this argument.
-		#
-		# Run "ffmpeg -hwaccels" to see supported acceleration methods.
-		#
-		ffmpegHwaccel = "auto"
-		ffmpegThreads = 1
-		transcodeFrameRate = 30
-		transcodeMaxDim = 1280
-		# transcodeVideos = true
-		# hiddenHomeTags = [
-		#   "Type"
-		# ]
-		lazyLoadExtraVh = 200
-		# END_SHELLRC
-		EOF
-	}
-
 	_shellrc_is_darwin && cleanup_macos() {
 		if test "$(id -u 2>/dev/null)" -ne 0; then
 			echo "Please re-run this command using:"
