@@ -71,6 +71,7 @@ main() {
 		configure_automysqlbackup
 		configure_goaccess
 		configure_composer
+		configure_docker_compose
 		configure_shdotenv
 		configure_zoxide
 		configure_aliases
@@ -1985,6 +1986,29 @@ configure_composer() {
 	fi
 	export COMPOSER_FUND=0
 	unset CONFIGFILE
+}
+
+# Make a standalone `docker-compose` (e.g. Homebrew's) available as
+# `docker compose` by linking it into the user's Docker CLI plugin directory.
+# Leaves an existing plugin (e.g. Docker Desktop's link) alone, and skips the
+# Compose v1 Python script, which is not a CLI plugin.
+configure_docker_compose() {
+	_shellrc_command docker || return 0
+	_shellrc_command docker-compose || return 0
+	_shellrc_debug_echo "configure_docker_compose()"
+	DOCKER_PLUGIN_DIR=${DOCKER_CONFIG:-$HOME/.docker}/cli-plugins
+	if test -e "$DOCKER_PLUGIN_DIR/docker-compose"; then
+		unset DOCKER_PLUGIN_DIR
+		return 0
+	fi
+	DOCKER_COMPOSE_BIN=$(command -v docker-compose)
+	if "$DOCKER_COMPOSE_BIN" docker-cli-plugin-metadata >/dev/null 2>&1; then
+		# -f replaces a dangling link left behind by an uninstalled plugin
+		mkdir -p "$DOCKER_PLUGIN_DIR" &&
+			ln -sf "$DOCKER_COMPOSE_BIN" "$DOCKER_PLUGIN_DIR/docker-compose" ||
+			true
+	fi
+	unset DOCKER_PLUGIN_DIR DOCKER_COMPOSE_BIN
 }
 
 # ******************************************************************************
