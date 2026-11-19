@@ -744,11 +744,7 @@ configure_PATH() {
 	# Mac apps
 	_shellrc_append_PATH "/Applications/Sublime Text.app/Contents/SharedSupport/bin"
 	_shellrc_append_PATH "/Applications/Sublime Merge.app/Contents/SharedSupport/bin"
-	_shellrc_append_PATH "/Applications/Tower.app/Contents/MacOS"
-	_shellrc_append_PATH "/Applications/VMware Fusion.app/Contents/Library"
 	_shellrc_append_PATH "/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
-	_shellrc_append_PATH "/Applications/MAMP/Library/bin"
-	_shellrc_append_PATH "/Applications/MAMP/Library/sbin"
 	# Windows
 	_shellrc_append_PATH "$HOME/AppData/Local/Programs/Microsoft VS Code/bin"
 	_shellrc_append_PATH "${PROGRAMFILES:-}/Sublime Text"
