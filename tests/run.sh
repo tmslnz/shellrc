@@ -253,6 +253,36 @@ test_command_has_option() {
 	assert_contains "${_options_cache_fakecmd:-}" "usage: fakecmd" "help text cache"
 }
 
+test_docker_compose_is_linked_as_cli_plugin() {
+	mkdir "$HOME/fakebin"
+	printf '#!/bin/sh\n' >"$HOME/fakebin/docker"
+	printf '#!/bin/sh\ntest "$1" = docker-cli-plugin-metadata\n' >"$HOME/fakebin/docker-compose"
+	chmod +x "$HOME/fakebin/docker" "$HOME/fakebin/docker-compose"
+	PATH="$HOME/fakebin:$PATH"
+	plugin=$HOME/.docker/cli-plugins/docker-compose
+	configure_docker_compose
+	assert_eq "$HOME/fakebin/docker-compose" "$(readlink "$plugin")" "plugin link"
+	# A dangling link is replaced
+	rm "$plugin"
+	ln -s "$HOME/gone" "$plugin"
+	configure_docker_compose
+	assert_eq "$HOME/fakebin/docker-compose" "$(readlink "$plugin")" "dangling link"
+	# An existing plugin is left alone
+	rm "$plugin"
+	printf '#!/bin/sh\n' >"$plugin"
+	configure_docker_compose
+	test -L "$plugin" && fail "existing plugin was replaced"
+	# DOCKER_CONFIG is honoured; Compose v1 (no plugin metadata) is skipped
+	DOCKER_CONFIG=$HOME/dc
+	configure_docker_compose
+	test -L "$HOME/dc/cli-plugins/docker-compose" || fail "DOCKER_CONFIG ignored"
+	printf '#!/bin/sh\nexit 1\n' >"$HOME/fakebin/docker-compose"
+	DOCKER_CONFIG=$HOME/v1
+	configure_docker_compose
+	test -e "$HOME/v1/cli-plugins/docker-compose" && fail "Compose v1 was linked"
+	return 0
+}
+
 test_shellrc_dispatcher() {
 	assert_contains "$(shellrc help)" "shellrc update" help
 	case "$(shellrc version)" in
